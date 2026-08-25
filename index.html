@@ -3,38 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pax Historia Engine</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Pax Historia Direct Engine</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #0a1118; color: #e2e8f0; font-family: monospace; }
-        #header { height: 45px; background: #131d27; border-bottom: 2px solid #2a3b4d; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; }
-        #map { height: calc(100% - 45px); width: 100%; background: #0a1118; }
-        .pax-title { font-weight: bold; color: #f59e0b; letter-spacing: 1px; }
-        .pax-status { font-size: 13px; color: #38bdf8; }
+        body { margin: 0; padding: 0; background-color: #050a0e; color: #d1d5db; font-family: monospace; overflow: hidden; }
+        #ui-bar {
+            height: 40px; background: #0f172a; border-bottom: 2px solid #1e293b;
+            display: flex; align-items: center; justify-content: space-between; padding: 0 15px;
+        }
+        #province-title { font-weight: bold; color: #f59e0b; font-size: 15px; }
+        #map-container { width: 100vw; height: calc(100vh - 40px); position: relative; cursor: crosshair; }
+        canvas { position: absolute; top: 0; left: 0; }
     </style>
 </head>
 <body>
 
-<div id="header">
-    <span class="pax-title">PAX HISTORIA MAP ENGINE</span>
-    <span id="status" class="pax-status">Eyalet seçin...</span>
-</div>
+    <div id="ui-bar">
+        <span>PAX HISTORIA MAP CLONE v1.0</span>
+        <span id="province-title">Seçilen Bölge: Yok</span>
+    </div>
 
-<div id="map"></div>
+    <div id="map-container">
+        <!-- Oyun Haritası Görseli (Eyalet Renk Haritası) -->
+        <canvas id="mapCanvas"></canvas>
+    </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-    const map = L.map('map', { zoomControl: false }).setView([48.0, 15.0], 4);
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const title = document.getElementById('province-title');
 
-    // Pax Historia tarzı koyu deniz teması
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-        maxZoom: 10, minZoom: 3
-    }).addTo(map);
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-    // Kendi hazırladığın veya indirilen pax_provinces.json dosyasını yükleme alanı:
-    /*
-    fetch('pax_provinces.json')
-        .then(res => res.json())
+        // Pax Historia Piksel-Renk Eyalet Sözlüğü (RGB Kodlarına Göre Eyalet Eşleme)
+        const paxRegistry = {
+            "255,0,0": "İstanbul (Istanbul Province)",
+            "200,0,0": "Tekirdağ (Tekirdag)",
+            "180,50,0": "Western Anatolia (Ege & Batı)",
+            "150,100,0": "Central Anatolia (İç Anadolu)",
+            "255,200,0": "Hatay",
+            "255,100,0": "Shoutheast anatolia (Güneydoğu)",
+            "100,0,200": "Trebizond (Trabzon)",
+            "50,0,250": "Artvin-Kars",
+            "0,255,0": "İrlanda (Ireland)",
+            "0,100,255": "Scotland (İskoçya)",
+            "0,50,200": "London (Londra)",
+            "255,0,255": "Paris (Normandy / İle-de-France)",
+            "0,255,255": "Calais / Dunkirk"
+        };
+
+        // Arka Planda Pax Historia Harita Çizimi
+        function renderPaxBase() {
+            ctx.fillStyle = '#0a1118'; // Pax Deniz Rengi
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Örnek Birebir Eyalet Poligonları (Pax Harita pikselleri)
+            drawProvince([[300,200],[320,190],[340,210],[310,220]], "255,0,0"); // İstanbul
+            drawProvince([[260,200],[295,195],[295,220],[250,215]], "200,0,0"); // Tekirdağ
+            drawProvince([[280,225],[360,225],[350,300],[290,290]], "180,50,0"); // Batı Anadolu
+            drawProvince([[365,210],[480,210],[470,280],[355,285]], "150,100,0"); // İç Anadolu
+            drawProvince([[100,100],[150,90],[160,150],[90,140]], "0,255,0"); // İrlanda
+            drawProvince([[180,80],[220,70],[230,130],[190,140]], "0,100,255"); // İskoçya
+        }
+
+        function drawProvince(points, colorRgb) {
+            ctx.beginPath();
+            ctx.moveTo(points[0][0], points[0][1]);
+            for(let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i][0], points[i][1]);
+            }
+            ctx.closePath();
+            ctx.fillStyle = `rgb(${colorRgb})`;
+            ctx.fill();
+            ctx.strokeStyle = '#050a0e';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+
+        renderPaxBase();
+
+        // Tıklanan pikselin RGB rengini okuyarak Pax Historia Eyaletini Anında Tetikler
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const pixel = ctx.getImageData(x, y, 1, 1).data;
+            const rgbKey = `${pixel[0]},${pixel[1]},${pixel[2]}`;
+
+            if (paxRegistry[rgbKey]) {
+                title.innerText = "Seçilen Eyalet: " + paxRegistry[rgbKey];
+            } else {
+                title.innerText = "Seçilen Bölge: Deniz / Tanımsız Alan";
+            }
+        });
+    </script>
+</body>
+</html>        .then(res => res.json())
         .then(data => {
             L.geoJSON(data, {
                 style: { fillColor: '#1e293b', color: '#475569', weight: 1, fillOpacity: 0.8 },
