@@ -7,27 +7,29 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; background-color: #111; color: white; font-family: sans-serif; }
-        #map { height: 65vh; width: 100vw; background: #0e1e2b; }
-        # kaynaklar { height: 5vh; background: #111; display: flex; justify-content: space-around; align-items: center; border-bottom: 1px solid #333; font-weight: bold; }
-        #panel { height: 30vh; padding: 15px; box-sizing: border-box; background: #222; text-align: center; border-top: 2px solid #444; }
-        button { padding: 10px 18px; font-size: 14px; background: #c0392b; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 5px; }
-        button.mavi { background: #2980b9; }
+        #map { height: 65vh; width: 100vw; background: #0b1721; }
+        #panel { height: 35vh; padding: 15px; box-sizing: border-box; background: #1a1a1a; text-align: center; border-top: 2px solid #333; }
+        .stats { display: flex; justify-content: space-around; margin: 15px 0; background: #2a2a2a; padding: 10px; border-radius: 8px; }
+        .stat-box { font-size: 14px; }
+        .stat-box span { display: block; font-size: 18px; font-weight: bold; color: #2ecc71; margin-top: 5px; }
+        button { padding: 12px 20px; font-size: 15px; background: #e74c3c; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 5px; }
+        button:hover { background: #c0392b; }
     </style>
 </head>
 <body>
 
-    <div id="kaynaklar">
-        <span>💰 Para: <span id="para">1000</span>$</span>
-        <span>⚔️ Ordu: <span id="ordu">500</span></span>
-    </div>
-
     <div id="map"></div>
-
     <div id="panel">
-        <h2 id="ulke-adi">Bir Ülkeye Tıkla</h2>
-        <p id="durum">Kendi ülkeni seç veya fethedeceğin ülkeyi belirle.</p>
-        <button class="mavi" onclick="orduBas()">Ordu Eğit (+100)</button>
-        <button onclick="savasAc()">Fethet / Savaş Aç</button>
+        <h2 id="ulke-adi">Bir Ülke Seçin</h2>
+        
+        <div class="stats">
+            <div class="stat-box">Ordu Gücü: <span id="asker">-</span></div>
+            <div class="stat-box">Ekonomi: <span id="ekonomi">-</span></div>
+        </div>
+
+        <p id="durum">Haritadan bir ülke seçip hamleni belirle.</p>
+        <button onclick="savasAc()">Savaş İlan Et</button>
+        <button onclick="isgalEt()" style="background:#27ae60;">Toprağı Ele Geçir</button>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -35,56 +37,57 @@
         var map = L.map('map').setView([39.9, 32.8], 3);
         var secilenUlke = null;
         var secilenKatman = null;
-        var para = 1000;
-        var ordu = 500;
 
         fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
             .then(response => response.json())
             .then(data => {
                 L.geoJSON(data, {
                     style: function(feature) {
-                        return { fillColor: '#34495e', weight: 1, color: '#ffffff', fillOpacity: 0.6 };
+                        return {
+                            fillColor: '#34495e',
+                            weight: 1,
+                            opacity: 1,
+                            color: '#ffffff',
+                            fillOpacity: 0.6
+                        };
                     },
                     onEachFeature: function(feature, layer) {
                         layer.on('click', function(e) {
-                            secilenUlke = feature.properties.name;
+                            // Önceki seçili ülkenin rengini sıfırla
+                            if(secilenKatman) {
+                                secilenKatman.setStyle({ fillColor: '#34495e' });
+                            }
+
+                            // Yeni seçilen ülkeyi kırmızı yap
                             secilenKatman = layer;
+                            secilenKatman.setStyle({ fillColor: '#e74c3c' });
+
+                            secilenUlke = feature.properties.name;
                             document.getElementById('ulke-adi').innerText = secilenUlke;
-                            document.getElementById('durum').innerText = secilenUlke + " seçildi. Ne yapmak istersin?";
+                            
+                            // Rastgele ordu ve ekonomi değerleri üret (Simülasyon)
+                            var asker = Math.floor(Math.random() * 50000) + 5000;
+                            var ekonomi = "$" + (Math.floor(Math.random() * 900) + 100) + "M";
+                            
+                            document.getElementById('asker').innerText = asker.toLocaleString() + " Asker";
+                            document.getElementById('ekonomi').innerText = ekonomi;
+                            document.getElementById('durum').innerText = secilenUlke + " seçildi. Hamle bekleniyor.";
                         });
                     }
                 }).addTo(map);
             });
 
-        function orduBas() {
-            if(para >= 200) {
-                para -= 200;
-                ordu += 100;
-                ekraniGuncelle();
-                document.getElementById('durum').innerText = "100 Yeni asker eğitildi!";
-            } else {
-                alert("Yeterli paran yok! (200$ gerekli)");
-            }
-        }
-
         function savasAc() {
-            if(!secilenUlke || !secilenKatman) {
-                alert("Önce haritadan bir ülke seçmelisin!");
-                return;
-            }
-            if(ordu >= 200) {
-                ordu -= 200;
-                secilenKatman.setStyle({ fillColor: '#e74c3c' }); // Fethettiğimiz yeri Kırmızı yap
-                ekraniGuncelle();
-                document.getElementById('durum').innerText = secilenUlke + " fethedildi! Kırmızı renkle haritana katıldı.";
-            } else {
-                alert("Fetih için en az 200 askere ihtiyacın var!");
-            }
+            if(!secilenUlke) return alert("Önce ülke seç!");
+            document.getElementById('durum').innerText = secilenUlke + " ülkesine savaş ilan edildi! Birlikler sınıra kaydırılıyor.";
         }
 
-        function ekraniGuncelle() {
-            document.getElementById('para').innerText = para;
-            document.getElementById('ordu').innerText = ordu;
+        function isgalEt() {
+            if(!secilenUlke) return alert("Önce ülke seç!");
+            document.getElementById('durum').innerText = secilenUlke + " başarıyla işgal edildi! Topraklarımıza katıldı.";
+            if(secilenKatman) {
+                secilenKatman.setStyle({ fillColor: '#27ae60' }); // İşgal edilince yeşil yap
+            }
         }
     </script>
 </body>
