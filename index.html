@@ -6,14 +6,39 @@
     <title>Pax Historia Çakması</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; background-color: #111; color: white; font-family: sans-serif; }
+        body { margin: 0; padding: 0; background-color: #111; color: white; font-family: sans-serif; overflow: hidden; }
         #map { height: 65vh; width: 100vw; background: #0b1721; }
         #panel { height: 35vh; padding: 15px; box-sizing: border-box; background: #1a1a1a; text-align: center; border-top: 2px solid #333; }
-        .stats { display: flex; justify-content: space-around; margin: 15px 0; background: #2a2a2a; padding: 10px; border-radius: 8px; }
-        .stat-box { font-size: 14px; }
-        .stat-box span { display: block; font-size: 18px; font-weight: bold; color: #2ecc71; margin-top: 5px; }
-        button { padding: 12px 20px; font-size: 15px; background: #e74c3c; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 5px; }
+        .stats { display: flex; justify-content: space-around; margin: 10px 0; background: #2a2a2a; padding: 8px; border-radius: 8px; }
+        .stat-box { font-size: 13px; }
+        .stat-box span { display: block; font-size: 16px; font-weight: bold; color: #2ecc71; margin-top: 3px; }
+        button { padding: 10px 16px; font-size: 14px; background: #e74c3c; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 3px; }
         button:hover { background: #c0392b; }
+
+        /* DANIŞMAN BUTONU VE PENCERESİ */
+        #advisor-btn {
+            position: fixed; bottom: 20px; right: 20px;
+            background: #f39c12; color: #111; border: none;
+            padding: 12px 18px; border-radius: 50px; font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; z-index: 1000;
+        }
+        #advisor-btn:hover { background: #e67e22; }
+
+        #advisor-chat {
+            display: none; position: fixed; bottom: 70px; right: 20px;
+            width: 300px; height: 380px; background: #222; border: 2px solid #f39c12;
+            border-radius: 10px; z-index: 1000; flex-direction: column;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.7);
+        }
+        #chat-header { background: #f39c12; color: #111; padding: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        #chat-close { cursor: pointer; font-weight: bold; }
+        #chat-body { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+        .msg { padding: 8px 12px; border-radius: 6px; max-width: 80%; }
+        .bot { background: #333; align-self: flex-start; border-left: 3px solid #f39c12; }
+        .user { background: #f39c12; color: #111; align-self: flex-end; font-weight: bold; }
+        #chat-input-container { display: flex; padding: 8px; background: #111; }
+        #chat-input { flex: 1; padding: 6px; border: none; border-radius: 3px; background: #222; color: white; outline: none; }
+        #chat-send { background: #f39c12; color: #111; border: none; padding: 6px 12px; margin-left: 5px; border-radius: 3px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -32,6 +57,23 @@
         <button onclick="isgalEt()" style="background:#27ae60;">Toprağı Ele Geçir</button>
     </div>
 
+    <!-- DANIŞMAN BUTONU VE SOHBET KUTUSU -->
+    <button id="advisor-btn" onclick="toggleChat()">💡 Danışman</button>
+
+    <div id="advisor-chat">
+        <div id="chat-header">
+            <span>Başdanışman</span>
+            <span id="chat-close" onclick="toggleChat()">✖</span>
+        </div>
+        <div id="chat-body">
+            <div class="msg bot">Emredin hünkarım! Devletimizin kalkınması ve zaferlerimiz için hizmetinizdeyim. Bana sorabilirsiniz.</div>
+        </div>
+        <div id="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Soru sor (Örn: Ekonomi nasıl büyür?)..." onkeypress="handleKeyPress(event)">
+            <button id="chat-send" onclick="sendMessage()">Gönder</button>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         var map = L.map('map').setView([39.9, 32.8], 3);
@@ -43,29 +85,16 @@
             .then(data => {
                 L.geoJSON(data, {
                     style: function(feature) {
-                        return {
-                            fillColor: '#34495e',
-                            weight: 1,
-                            opacity: 1,
-                            color: '#ffffff',
-                            fillOpacity: 0.6
-                        };
+                        return { fillColor: '#34495e', weight: 1, opacity: 1, color: '#ffffff', fillOpacity: 0.6 };
                     },
                     onEachFeature: function(feature, layer) {
                         layer.on('click', function(e) {
-                            // Önceki seçili ülkenin rengini sıfırla
-                            if(secilenKatman) {
-                                secilenKatman.setStyle({ fillColor: '#34495e' });
-                            }
-
-                            // Yeni seçilen ülkeyi kırmızı yap
+                            if(secilenKatman) secilenKatman.setStyle({ fillColor: '#34495e' });
                             secilenKatman = layer;
                             secilenKatman.setStyle({ fillColor: '#e74c3c' });
-
                             secilenUlke = feature.properties.name;
                             document.getElementById('ulke-adi').innerText = secilenUlke;
                             
-                            // Rastgele ordu ve ekonomi değerleri üret (Simülasyon)
                             var asker = Math.floor(Math.random() * 50000) + 5000;
                             var ekonomi = "$" + (Math.floor(Math.random() * 900) + 100) + "M";
                             
@@ -79,14 +108,61 @@
 
         function savasAc() {
             if(!secilenUlke) return alert("Önce ülke seç!");
-            document.getElementById('durum').innerText = secilenUlke + " ülkesine savaş ilan edildi! Birlikler sınıra kaydırılıyor.";
+            document.getElementById('durum').innerText = secilenUlke + " ülkesine savaş ilan edildi!";
         }
 
         function isgalEt() {
             if(!secilenUlke) return alert("Önce ülke seç!");
-            document.getElementById('durum').innerText = secilenUlke + " başarıyla işgal edildi! Topraklarımıza katıldı.";
-            if(secilenKatman) {
-                secilenKatman.setStyle({ fillColor: '#27ae60' }); // İşgal edilince yeşil yap
+            document.getElementById('durum').innerText = secilenUlke + " başarıyla işgal edildi!";
+            if(secilenKatman) secilenKatman.setStyle({ fillColor: '#27ae60' });
+        }
+
+        /* DANIŞMAN SOHBET MANTIĞI */
+        function toggleChat() {
+            var chat = document.getElementById('advisor-chat');
+            chat.style.display = (chat.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        function sendMessage() {
+            var input = document.getElementById('chat-input');
+            var text = input.value.trim();
+            if(!text) return;
+
+            var body = document.getElementById('chat-body');
+            
+            // Kullanıcı mesajı
+            var userMsg = document.createElement('div');
+            userMsg.className = 'msg user';
+            userMsg.innerText = text;
+            body.appendChild(userMsg);
+            input.value = '';
+
+            // Otomatik kaydır
+            body.scrollTop = body.scrollHeight;
+
+            // Danışman Cevabı (Yapay Zeka Mantığı)
+            setTimeout(function() {
+                var botMsg = document.createElement('div');
+                botMsg.className = 'msg bot';
+                botMsg.innerText = getAdvisorReply(text.toLowerCase());
+                body.appendChild(botMsg);
+                body.scrollTop = body.scrollHeight;
+            }, 600);
+        }
+
+        function getAdvisorReply(q) {
+            if(q.includes('ekonomi') || q.includes('para') || q.includes('kalkın')) {
+                return "Ekonomiyi büyütmek için vergileri dengelemeli, komşu ülkelerle ticaret anlaşması yapmalı ve liman şehirlerini geliştirmelisiniz!";
+            } else if(q.includes('ordu') || q.includes('asker') || q.includes('savaş')) {
+                return "Güçlü bir ordu için askeri harcamaları artırın. Savaş açmadan önce düşmanın ekonomi ve ordu gücünü kontrol etmeyi unutmayın!";
+            } else if(q.includes('isgal') || q.includes('toprak') || q.includes('fetih')) {
+                return "Zayıf ülkeleri gözünüze kestirin. İşgal ettiğiniz topraklarda isyan çıkmaması için oraya garnizon yerleştirin.";
+            } else {
+                return "Efendim, şu an stratejik olarak en doğrusu sınırlarımızı koruyup ekonomimizi güçlü tutmaktır. Başka bir sorunuz var mı?";
             }
         }
     </script>
