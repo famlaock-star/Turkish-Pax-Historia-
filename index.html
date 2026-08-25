@@ -7,13 +7,11 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; background-color: #111; color: white; font-family: sans-serif; overflow: hidden; }
-        #map { height: 65vh; width: 100vw; background: #0b1721; }
-        #panel { height: 35vh; padding: 15px; box-sizing: border-box; background: #1a1a1a; text-align: center; border-top: 2px solid #333; }
+        #map { height: 75vh; width: 100vw; background: #0b1721; }
+        #panel { height: 25vh; padding: 15px; box-sizing: border-box; background: #1a1a1a; text-align: center; border-top: 2px solid #333; }
         .stats { display: flex; justify-content: space-around; margin: 10px 0; background: #2a2a2a; padding: 8px; border-radius: 8px; }
         .stat-box { font-size: 13px; }
         .stat-box span { display: block; font-size: 16px; font-weight: bold; color: #2ecc71; margin-top: 3px; }
-        button { padding: 10px 16px; font-size: 14px; background: #e74c3c; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 3px; }
-        button:hover { background: #c0392b; }
 
         /* DANIŞMAN BUTONU VE PENCERESİ */
         #advisor-btn {
@@ -52,9 +50,7 @@
             <div class="stat-box">Ekonomi: <span id="ekonomi">-</span></div>
         </div>
 
-        <p id="durum">Haritadan bir ülke seçip hamleni belirle.</p>
-        <button onclick="savasAc()">Savaş İlan Et</button>
-        <button onclick="isgalEt()" style="background:#27ae60;">Toprağı Ele Geçir</button>
+        <p id="durum">Haritadan bir ülkeye tıklayarak detaylarını inceleyebilirsin.</p>
     </div>
 
     <!-- DANIŞMAN BUTONU VE SOHBET KUTUSU -->
@@ -66,10 +62,10 @@
             <span id="chat-close" onclick="toggleChat()">✖</span>
         </div>
         <div id="chat-body">
-            <div class="msg bot">Emredin hünkarım! Devletimizin kalkınması ve zaferlerimiz için hizmetinizdeyim. Bana sorabilirsiniz.</div>
+            <div class="msg bot">Emredin hünkarım! Haritadaki ülkeler ve stratejimiz hakkında danışabilirsiniz.</div>
         </div>
         <div id="chat-input-container">
-            <input type="text" id="chat-input" placeholder="Soru sor (Örn: Ekonomi nasıl büyür?)..." onkeypress="handleKeyPress(event)">
+            <input type="text" id="chat-input" placeholder="Danışmana soru sor..." onkeypress="handleKeyPress(event)">
             <button id="chat-send" onclick="sendMessage()">Gönder</button>
         </div>
     </div>
@@ -78,20 +74,39 @@
     <script>
         var map = L.map('map').setView([39.9, 32.8], 3);
         var secilenUlke = null;
-        var secilenKatman = null;
+
+        // Ülke Renk Haritası
+        var ulkeRenkleri = {
+            "Turkey": "#e74c3c",          // Türkiye - Kırmızı
+            "Greece": "#3498db",          // Yunanistan - Açık Mavi
+            "France": "#1a5276",          // Fransa - Koyu Mavi
+            "Germany": "#f1c40f",         // Almanya - Sarı
+            "Czech Republic": "#2980b9",  // Çekoslovakya / Çekya - Mavi
+            "United Kingdom": "#9b59b6",  // İngiltere - Mor
+            "Italy": "#27ae60",           // İtalya - Yeşil
+            "Russia": "#7f8c8d",          // Rusya - Gri
+            "United States of America": "#2e4053", // ABD - Koyu Lacivert
+            "Spain": "#e67e22"            // İspanya - Turuncu
+        };
 
         fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
             .then(response => response.json())
             .then(data => {
                 L.geoJSON(data, {
                     style: function(feature) {
-                        return { fillColor: '#34495e', weight: 1, opacity: 1, color: '#ffffff', fillOpacity: 0.6 };
+                        var name = feature.properties.name;
+                        // Özel renk varsa onu kullan, yoksa varsayılan renk ver
+                        var renk = ulkeRenkleri[name] || "#4a5568";
+                        return {
+                            fillColor: renk,
+                            weight: 1,
+                            opacity: 1,
+                            color: '#ffffff',
+                            fillOpacity: 0.7
+                        };
                     },
                     onEachFeature: function(feature, layer) {
                         layer.on('click', function(e) {
-                            if(secilenKatman) secilenKatman.setStyle({ fillColor: '#34495e' });
-                            secilenKatman = layer;
-                            secilenKatman.setStyle({ fillColor: '#e74c3c' });
                             secilenUlke = feature.properties.name;
                             document.getElementById('ulke-adi').innerText = secilenUlke;
                             
@@ -100,22 +115,11 @@
                             
                             document.getElementById('asker').innerText = asker.toLocaleString() + " Asker";
                             document.getElementById('ekonomi').innerText = ekonomi;
-                            document.getElementById('durum').innerText = secilenUlke + " seçildi. Hamle bekleniyor.";
+                            document.getElementById('durum').innerText = secilenUlke + " ülkesinin bilgileri görüntüleniyor.";
                         });
                     }
                 }).addTo(map);
             });
-
-        function savasAc() {
-            if(!secilenUlke) return alert("Önce ülke seç!");
-            document.getElementById('durum').innerText = secilenUlke + " ülkesine savaş ilan edildi!";
-        }
-
-        function isgalEt() {
-            if(!secilenUlke) return alert("Önce ülke seç!");
-            document.getElementById('durum').innerText = secilenUlke + " başarıyla işgal edildi!";
-            if(secilenKatman) secilenKatman.setStyle({ fillColor: '#27ae60' });
-        }
 
         /* DANIŞMAN SOHBET MANTIĞI */
         function toggleChat() {
@@ -133,18 +137,13 @@
             if(!text) return;
 
             var body = document.getElementById('chat-body');
-            
-            // Kullanıcı mesajı
             var userMsg = document.createElement('div');
             userMsg.className = 'msg user';
             userMsg.innerText = text;
             body.appendChild(userMsg);
             input.value = '';
-
-            // Otomatik kaydır
             body.scrollTop = body.scrollHeight;
 
-            // Danışman Cevabı (Yapay Zeka Mantığı)
             setTimeout(function() {
                 var botMsg = document.createElement('div');
                 botMsg.className = 'msg bot';
@@ -156,13 +155,11 @@
 
         function getAdvisorReply(q) {
             if(q.includes('ekonomi') || q.includes('para') || q.includes('kalkın')) {
-                return "Ekonomiyi büyütmek için vergileri dengelemeli, komşu ülkelerle ticaret anlaşması yapmalı ve liman şehirlerini geliştirmelisiniz!";
-            } else if(q.includes('ordu') || q.includes('asker') || q.includes('savaş')) {
-                return "Güçlü bir ordu için askeri harcamaları artırın. Savaş açmadan önce düşmanın ekonomi ve ordu gücünü kontrol etmeyi unutmayın!";
-            } else if(q.includes('isgal') || q.includes('toprak') || q.includes('fetih')) {
-                return "Zayıf ülkeleri gözünüze kestirin. İşgal ettiğiniz topraklarda isyan çıkmaması için oraya garnizon yerleştirin.";
+                return "Ekonomiyi büyütmek için yatırımları artırmalı ve ticaret yollarını güvenceye almalısınız!";
+            } else if(q.includes('ordu') || q.includes('asker')) {
+                return "Sınır güvenliği için ordu kapasitesini yüksek tutmak her zaman avantaj sağlar.";
             } else {
-                return "Efendim, şu an stratejik olarak en doğrusu sınırlarımızı koruyup ekonomimizi güçlü tutmaktır. Başka bir sorunuz var mı?";
+                return "Efendim, haritadaki renkli bölgeleri inceleyerek stratejinizi belirleyebilirsiniz.";
             }
         }
     </script>
