@@ -6,10 +6,11 @@
     <title>Pax Historia Çakması</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; background-color: #1a1a1a; color: white; font-family: sans-serif; }
-        #map { height: 70vh; width: 100vw; }
-        #panel { height: 30vh; padding: 15px; box-sizing: border-box; background: #222; text-align: center; }
-        button { padding: 10px 20px; font-size: 16px; background: #28a745; color: white; border: none; border-radius: 5px; margin-top: 10px; }
+        body { margin: 0; padding: 0; background-color: #111; color: white; font-family: sans-serif; }
+        #map { height: 70vh; width: 100vw; background: #0e1e2b; }
+        #panel { height: 30vh; padding: 15px; box-sizing: border-box; background: #222; text-align: center; border-top: 2px solid #444; }
+        button { padding: 12px 24px; font-size: 16px; background: #c0392b; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        button:hover { background: #e74c3c; }
     </style>
 </head>
 <body>
@@ -17,21 +18,47 @@
     <div id="map"></div>
     <div id="panel">
         <h2 id="ulke-adi">Bir Ülkeye Tıkla</h2>
-        <p id="durum">Oyun Başladı!</p>
-        <button onclick="turAtla()">Turu Atla (Savaş)</button>
+        <p id="durum">Seçilen ülkeyi fethetmek için alt butonları kullan.</p>
+        <button onclick="savasAc()">Savaş Aç / Fethet</button>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        var map = L.map('map').setView([39.9, 32.8], 4);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+        var map = L.map('map').setView([39.9, 32.8], 3);
 
-        function turAtla() {
-            document.getElementById('durum').innerText = 'Yapay zeka hamleyi hesaplıyor...';
+        // Ülke sınırlarını getiren GeoJSON katmanı
+        var secilenUlke = null;
+
+        fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function(feature) {
+                        return {
+                            fillColor: '#27ae60',
+                            weight: 1,
+                            opacity: 1,
+                            color: '#ffffff',
+                            fillOpacity: 0.5
+                        };
+                    },
+                    onEachFeature: function(feature, layer) {
+                        layer.on('click', function(e) {
+                            secilenUlke = feature.properties.name;
+                            document.getElementById('ulke-adi').innerText = secilenUlke;
+                            document.getElementById('durum').innerText = secilenUlke + " seçildi. Hamle yapabilirsin!";
+                        });
+                    }
+                }).addTo(map);
+            });
+
+        function savasAc() {
+            if(!secilenUlke) {
+                alert("Önce haritadan bir ülke seçmelisin!");
+                return;
+            }
+            document.getElementById('durum').innerText = secilenUlke + " ülkesine savaş açıldı!";
         }
     </script>
 </body>
-</html>
+    </html>
