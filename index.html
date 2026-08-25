@@ -3,38 +3,254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Turkish Pax Historia</title>
+    <title>Pax Historia Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
+        * { box-sizing: border-box; }
         html, body { 
             margin: 0; 
             padding: 0; 
             width: 100%; 
             height: 100%; 
-            background-color: #0f2238; 
+            background-color: #122236; 
             overflow: hidden; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         
-        /* GERÇEKÇİ MAT PAX HISTORIA OKYANUSU */
-        #map, .leaflet-container { 
+        #map { 
             width: 100vw; 
             height: 100vh; 
-            background: #0f2238 !important; 
+            background: #122236; 
             position: absolute; 
             top: 0; 
             left: 0; 
         }
 
-        .leaflet-control-attribution { display: none !important; }
-
-        .leaflet-grid-label {
-            display: none;
+        .leaflet-container {
+            background: #122236 !important;
         }
+
+        .leaflet-control-attribution { display: none !important; }
 
         #advisor-btn {
             position: fixed; bottom: 20px; right: 20px;
             background: #d35400; color: #fff; border: 1px solid #f39c12;
             padding: 12px 20px; border-radius: 50px; font-weight: bold; font-size: 13px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6); cursor: pointer; z-index: 1000;
+        }
+
+        #advisor-modal {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: #ffffff;
+            z-index: 2000; flex-direction: column; justify-content: space-between;
+            box-sizing: border-box; padding: 15px;
+        }
+
+        .modal-header-actions { position: absolute; top: 10px; right: 15px; display: flex; gap: 8px; z-index: 2100; }
+        .header-btn { cursor: pointer; font-size: 11px; font-weight: bold; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; }
+        #clear-chat-btn { background: #7f8c8d; }
+        #modal-close-btn { background: #c0392b; }
+
+        #advisor-content { flex: 1; display: flex; flex-direction: column; width: 100%; margin-top: 35px; box-sizing: border-box; overflow: hidden; }
+        #chat-wrapper { flex: 1; overflow-y: auto; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 8px; padding: 10px; }
+        #chat-body { display: flex; flex-direction: column; gap: 10px; }
+
+        .msg { padding: 10px 14px; border-radius: 8px; max-width: 88%; line-height: 1.4; font-size: 13px; white-space: pre-wrap; }
+        .bot { background: #ffffff; border-left: 4px solid #f39c12; color: #2c3e50; align-self: flex-start; }
+        .user { background: #3498db; color: #ffffff; align-self: flex-end; }
+        .error { background: #fde8e8; border-left: 4px solid #e74c3c; color: #c0392b; align-self: flex-start; }
+
+        #quick-questions { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+        .quick-btn { background: #edf2f7; color: #4a5568; border: 1px solid #cbd5e0; padding: 6px; border-radius: 4px; font-size: 10px; font-weight: 600; flex: 1; min-width: 90px; text-align: center; cursor: pointer; }
+
+        #chat-input-container { display: flex; gap: 8px; }
+        #chat-input { flex: 1; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; }
+        #chat-send { background: #27ae60; color: #fff; border: none; padding: 0 15px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <button id="advisor-btn" onclick="toggleAdvisorModal()">💡 Danışman AI</button>
+
+    <div id="advisor-modal">
+        <div class="modal-header-actions">
+            <button id="clear-chat-btn" class="header-btn" onclick="clearChatHistory()">🧹 Temizle</button>
+            <button id="modal-close-btn" class="header-btn" onclick="toggleAdvisorModal()">⬅️ Çık</button>
+        </div>
+
+        <div id="advisor-content">
+            <div id="chat-wrapper">
+                <div id="chat-body"></div>
+            </div>
+
+            <div id="quick-questions">
+                <button class="quick-btn" onclick="sendQuickQuestion('Jeopolitik denge ne durumda?')">🌐 Jeopolitik</button>
+                <button class="quick-btn" onclick="sendQuickQuestion('Sınır komşularım ile durumum nasıl?')">⚔️ Komşular</button>
+                <button class="quick-btn" onclick="sendQuickQuestion('Ekonomim ne durumda?')">💰 Ekonomi</button>
+            </div>
+
+            <div id="chat-input-container">
+                <input type="text" id="chat-input" placeholder="Danışmana sor..." onkeypress="handleKeyPress(event)">
+                <button id="chat-send" onclick="sendMessage()">Gönder</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var GEMINI_API_KEY = "AQ.Ab8RN6JC0PySn1_SVRc8hm_9FrJgzjgvsty4MW8eTpIyRPlvUA";
+        var chatHistory = [];
+        var isGenerating = false;
+
+        var map = L.map('map', { 
+            attributionControl: false, 
+            preferCanvas: true,
+            zoomAnimation: true, 
+            worldCopyJump: true,
+            minZoom: 2, 
+            maxZoom: 9
+        }).setView([38.0, 25.0], 4);
+
+        // CartoDB Dark Matter Alt Katmanı (Gerçekçi Okyanus Tonu)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        // SABİTLENMİŞ CANLI STRATEJİ RENKLERİ
+        var sabitUlkeRenkleri = {
+            "Turkey": "#ce2b2b",
+            "Greece": "#2b73b5",
+            "Bulgaria": "#2e8b57",
+            "Romania": "#e6b800",
+            "United Kingdom": "#80397b",
+            "France": "#3366cc",
+            "Germany": "#5c6b73",
+            "Italy": "#2d8a4e",
+            "Russia": "#3a8c52",
+            "United States of America": "#28527a",
+            "China": "#de3831",
+            "Egypt": "#cda035",
+            "Iran": "#008b8b",
+            "Saudi Arabia": "#d9822b",
+            "Spain": "#c0392b",
+            "Portugal": "#7d3c98",
+            "Syria": "#a569bd",
+            "Iraq": "#d4ac0d",
+            "Azerbaijan": "#20b2aa",
+            "Georgia": "#e74c3c",
+            "Ukraine": "#f1c40f",
+            "Poland": "#ecf0f1",
+            "Sweden": "#3498db",
+            "Finland": "#aeb6bf"
+        };
+
+        function getBenzersizUlkeRengi(isim) {
+            if (!isim) return "#4a6572";
+            if (sabitUlkeRenkleri[isim]) return sabitUlkeRenkleri[isim];
+            
+            var hash = 0;
+            for (var i = 0; i < isim.length; i++) { 
+                hash = isim.charCodeAt(i) + ((hash << 5) - hash); 
+            }
+            var hue = Math.abs(hash) % 360;
+            return "hsl(" + hue + ", 55%, 42%)";
+        }
+
+        fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson')
+            .then(res => res.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: f => {
+                        var name = f.properties.NAME || f.properties.ADMIN;
+                        return { 
+                            fillColor: getBenzersizUlkeRengi(name), 
+                            weight: 1.1, 
+                            opacity: 1, 
+                            color: '#11161d', 
+                            fillOpacity: 0.92 
+                        };
+                    }
+                }).addTo(map);
+
+                setTimeout(() => map.invalidateSize(), 500);
+            }).catch(e => console.error("Harita verisi yüklenemedi:", e));
+
+        window.onload = function() {
+            setTimeout(() => map.invalidateSize(), 300);
+            var saved = localStorage.getItem('tph_chat_history');
+            if (saved) { chatHistory = JSON.parse(saved); renderChatHistory(); }
+        };
+
+        function renderChatHistory() {
+            var body = document.getElementById('chat-body'); body.innerHTML = '';
+            chatHistory.forEach(item => {
+                var msg = document.createElement('div');
+                msg.className = 'msg ' + item.role; msg.innerText = item.text;
+                body.appendChild(msg);
+            });
+            scrollToBottom();
+        }
+
+        function saveMessage(role, text) { chatHistory.push({ role, text }); localStorage.setItem('tph_chat_history', JSON.stringify(chatHistory)); }
+        function clearChatHistory() { if (!isGenerating && confirm("Silinsin mi?")) { chatHistory = []; localStorage.removeItem('tph_chat_history'); document.getElementById('chat-body').innerHTML = ''; } }
+        function toggleAdvisorModal() { var m = document.getElementById('advisor-modal'); m.style.display = (m.style.display === 'flex') ? 'none' : 'flex'; }
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+        function sendQuickQuestion(t) { if (!isGenerating) { document.getElementById('chat-input').value = t; sendMessage(); } }
+
+        function setControlsDisabled(d) {
+            isGenerating = d;
+            document.getElementById('chat-input').disabled = d;
+            document.getElementById('chat-send').disabled = d;
+            document.getElementById('chat-send').innerText = d ? "..." : "Gönder";
+        }
+
+        function scrollToBottom() { var w = document.getElementById('chat-wrapper'); setTimeout(() => w.scrollTop = w.scrollHeight, 50); }
+
+        async function fetchGeminiApi(model, promptText) {
+            var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-goog-api-key': GEMINI_API_KEY },
+                body: JSON.stringify({ contents: [{ parts: [{ text: "Sen Turkish Pax Historia Başdanışmanısın. Soru: '" + promptText + "'. Kısa analiz yap ve '📌 Tavsiye Edilen Stratejik Hamleler:' altında 2-3 madde ver." }] }] })
+            });
+            var d = await res.json();
+            if (d.candidates?.[0]?.content?.parts?.[0]?.text) return d.candidates[0].content.parts[0].text;
+            throw new Error(d.error?.message || "Hata");
+        }
+
+        async function fetchGeminiResponse(p) {
+            try { return await fetchGeminiApi("gemini-2.5-flash", p); }
+            catch (e) { return await fetchGeminiApi("gemini-3.5-flash-lite", p); }
+        }
+
+        async function sendMessage() {
+            if (isGenerating) return;
+            var input = document.getElementById('chat-input');
+            var text = input.value.trim();
+            if (!text) return;
+
+            setControlsDisabled(true);
+            var body = document.getElementById('chat-body');
+            saveMessage('user', text);
+
+            var uMsg = document.createElement('div'); uMsg.className = 'msg user'; uMsg.innerText = text; body.appendChild(uMsg);
+            input.value = ''; scrollToBottom();
+
+            var lMsg = document.createElement('div'); lMsg.className = 'msg bot'; lMsg.innerText = "Düşünüyor..."; body.appendChild(lMsg);
+            scrollToBottom();
+
+            try {
+                var resp = await fetchGeminiResponse(text);
+                lMsg.innerText = resp; saveMessage('bot', resp);
+            } catch (err) {
+                lMsg.className = 'msg error'; lMsg.innerText = "⚠️ Hata: " + err.message; saveMessage('error', lMsg.innerText);
+            } finally { setControlsDisabled(false); scrollToBottom(); }
+        }
+    </script>
+</body>
+</html>            padding: 12px 20px; border-radius: 50px; font-weight: bold; font-size: 13px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.6); cursor: pointer; z-index: 1000;
             font-family: sans-serif;
         }
