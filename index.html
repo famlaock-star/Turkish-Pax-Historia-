@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pax Historia Style Map</title>
-    <!-- Leaflet CSS -->
+    <title>Pax Historia Custom Provinces Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html {
@@ -12,29 +11,367 @@
             padding: 0;
             height: 100%;
             width: 100%;
-            font-family: Arial, sans-serif;
-            background-color: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a;
             color: #ffffff;
         }
-        #map {
-            height: calc(100% - 60px);
-            width: 100%;
-            background: #0f172a;
-        }
         #header {
-            height: 60px;
-            background-color: #0f172a;
+            height: 55px;
+            background-color: #1e293b;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-            border-bottom: 1px solid #334155;
+            border-bottom: 2px solid #334155;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        #map {
+            height: calc(100% - 55px);
+            width: 100%;
+            background: #090d16;
         }
         .info-panel {
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600;
             color: #38bdf8;
+            background: #0f172a;
+            padding: 6px 16px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+        }
+        .leaflet-popup-content-wrapper {
+            background: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .leaflet-popup-tip {
+            background: #1e293b;
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h3 style="margin:0; color:#f8fafc;">Pax Historia - Özel Harita Düzeni</h3>
+    <div id="selected-info" class="info-panel">Bir bölgeye veya ile tıklayın...</div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // 1. Haritayı Başlat
+    const map = L.map('map').setView([48.0, 15.0], 4);
+
+    // Koyu Tema Harita Katmanı (CartoDB Dark Matter)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; Pax Historia Map Engine',
+        subdomains: 'abcd',
+        maxZoom: 10,
+        minZoom: 3
+    }).addTo(map);
+
+    // 2. Senin Pax Historia Özel İsim Eşleştirme Sözlüğün
+    // Sınır verileri yüklendiğinde bu sözlükteki özel isimler otomatik uygulanır.
+    const paxCustomNames = {
+        // --- TÜRKİYE ---
+        "Istanbul": "istanbul",
+        "Tekirdag": "Tekirdag",
+        "Hatay": "Hatay",
+        "Trabzon": "Trebizond",
+        "Rize": "Trebizond",
+        "Giresun": "Trebizond",
+        "Artvin": "Artvin-Kars",
+        "Kars": "Artvin-Kars",
+        "Ardahan": "Artvin-Kars",
+        "Igridir": "Artvin-Kars",
+        "Gaziantep": "Shoutheast anatolia",
+        "Sanliurfa": "Shoutheast anatolia",
+        "Diyarbakir": "Shoutheast anatolia",
+        "Mardin": "Shoutheast anatolia",
+        "Batman": "Shoutheast anatolia",
+        "Sirnak": "Shoutheast anatolia",
+        "Siirt": "Shoutheast anatolia",
+        "Ankara": "Central Anatolia",
+        "Konya": "Central Anatolia",
+        "Kayseri": "Central Anatolia",
+        "Sivas": "Central Anatolia",
+        "Izmir": "Western Anatolia",
+        "Bursa": "Western Anatolia",
+        "Antalya": "Western Anatolia",
+        "Manisa": "Western Anatolia",
+
+        // --- BİRLEŞİK KRALLIK & İRLANDA ---
+        "Ireland": "İrlanda",
+        "Northern Ireland": "northern irland",
+        "Scotland": "Scotland",
+        "Wales": "Wales",
+        "London": "London",
+        "North West": "Northwest England",
+        "North East": "Northeast england",
+        "Yorkshire and The Humber": "Yorkshire and the Humber",
+        "South West": "Southweast england",
+        "West Midlands": "Weast Midlands",
+        "East of England": "East of England",
+        "South East": "shoutheast england",
+
+        // --- FRANSA ---
+        "Nord": "Lille",
+        "Pas-de-Calais": "Calais",
+        "Somme": "Amiens",
+        "Seine-Maritime": "Dieppe",
+        "Normandie": "Normandy",
+        "Île-de-France": "Paris",
+        "Ardennes": "Ardennes",
+        "Meuse": "Verdun",
+        "Grand Est": "Alsace-Lorraine",
+        "Meurthe-et-Moselle": "Nancy",
+        "Bourgogne-Franche-Comté": "Bourgogne-Franche-Comte",
+        "Centre-Val de Loire": "Centre-Val de Loire",
+        "Nouvelle-Aquitaine": "Nouvelle_Aquitaine",
+        "Bretagne": "Brittany",
+        "Auvergne-Rhône-Alpes": "Auvergne_Rhone-Alpes",
+        "Occitanie": "Occitaine",
+        "Provence-Alpes-Côte d'Azur": "Region Sud",
+        "Corse": "Corsia",
+
+        // --- YUNANİSTAN & BALKANLAR ---
+        "Thrace": "tharace",
+        "Central Macedonia": "Greek Macedonia",
+        "Eastern Macedonia and Thrace": "Greek Macedonia",
+        "Crete": "Crete",
+        "Rhodes": "Rhodes",
+        "Dobrich": "Dobruja",
+        "Constanta": "Northen dobruja",
+        "Tulcea": "Northen dobruja",
+        "Suceava": "Bucovina",
+        "Maramures": "North Transylvania",
+        "Satu Mare": "North Transylvania",
+        "Brașov": "South Transylvania",
+        "Sibiu": "South Transylvania",
+        "Srem": "Sremska Mitrovica"
+    };
+
+    // 3. Gerçek İl/Eyalet Sınırlarını GeoJSON Olarak Çekme ve Çizme
+    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
+        .then(response => response.json())
+        .then(data => {
+            L.geoJSON(data, {
+                style: function(feature) {
+                    return {
+                        fillColor: '#2563eb',
+                        weight: 1,
+                        opacity: 0.7,
+                        color: '#64748b',
+                        fillOpacity: 0.4
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    let originalName = feature.properties.name || feature.properties.name_en;
+                    let countryName = feature.properties.admin;
+                    
+                    // Pax Historia özel ismini al, yoksa orijinal adı kalsın
+                    let displayName = paxCustomNames[originalName] || originalName;
+
+                    // Fare üzerine gelince parlama
+                    layer.on('mouseover', function() {
+                        this.setStyle({
+                            fillOpacity: 0.8,
+                            fillColor: '#38bdf8',
+                            weight: 2,
+                            color: '#ffffff'
+                        });
+                    });
+
+                    layer.on('mouseout', function() {
+                        this.setStyle({
+                            fillOpacity: 0.4,
+                            fillColor: '#2563eb',
+                            weight: 1,
+                            color: '#64748b'
+                        });
+                    });
+
+                    // Tıklayınca Pax Historia bölge ismini göster
+                    layer.on('click', function(e) {
+                        document.getElementById('selected-info').innerText = `${displayName} (${countryName})`;
+                        
+                        L.popup()
+                            .setLatLng(e.latlng)
+                            .setContent(`<b>Pax Bölgesi:</b> ${displayName}<br><b>Ülke:</b> ${countryName}`)
+                            .openOn(map);
+                    });
+                }
+            }).addTo(map);
+        })
+        .catch(err => {
+            console.error("Sınır verisi yüklenirken hata oluştu:", err);
+            document.getElementById('selected-info').innerText = "Sınır verileri yüklenemedi. İnternet bağlantınızı kontrol edin.";
+        });
+</script>
+</body>
+</html><div id="header">
+    <h3 style="margin:0; color:#f8fafc;">Pax Historia - Özel Harita Düzeni</h3>
+    <div id="selected-info" class="info-panel">Bir bölgeye veya ile tıklayın...</div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // 1. Haritayı Başlat
+    const map = L.map('map').setView([48.0, 15.0], 4);
+
+    // Koyu Tema Harita Katmanı (CartoDB Dark Matter)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; Pax Historia Map Engine',
+        subdomains: 'abcd',
+        maxZoom: 10,
+        minZoom: 3
+    }).addTo(map);
+
+    // 2. Senin Pax Historia Özel İsim Eşleştirme Sözlüğün
+    // Sınır verileri yüklendiğinde bu sözlükteki özel isimler otomatik uygulanır.
+    const paxCustomNames = {
+        // --- TÜRKİYE ---
+        "Istanbul": "istanbul",
+        "Tekirdag": "Tekirdag",
+        "Hatay": "Hatay",
+        "Trabzon": "Trebizond",
+        "Rize": "Trebizond",
+        "Giresun": "Trebizond",
+        "Artvin": "Artvin-Kars",
+        "Kars": "Artvin-Kars",
+        "Ardahan": "Artvin-Kars",
+        "Igridir": "Artvin-Kars",
+        "Gaziantep": "Shoutheast anatolia",
+        "Sanliurfa": "Shoutheast anatolia",
+        "Diyarbakir": "Shoutheast anatolia",
+        "Mardin": "Shoutheast anatolia",
+        "Batman": "Shoutheast anatolia",
+        "Sirnak": "Shoutheast anatolia",
+        "Siirt": "Shoutheast anatolia",
+        "Ankara": "Central Anatolia",
+        "Konya": "Central Anatolia",
+        "Kayseri": "Central Anatolia",
+        "Sivas": "Central Anatolia",
+        "Izmir": "Western Anatolia",
+        "Bursa": "Western Anatolia",
+        "Antalya": "Western Anatolia",
+        "Manisa": "Western Anatolia",
+
+        // --- BİRLEŞİK KRALLIK & İRLANDA ---
+        "Ireland": "İrlanda",
+        "Northern Ireland": "northern irland",
+        "Scotland": "Scotland",
+        "Wales": "Wales",
+        "London": "London",
+        "North West": "Northwest England",
+        "North East": "Northeast england",
+        "Yorkshire and The Humber": "Yorkshire and the Humber",
+        "South West": "Southweast england",
+        "West Midlands": "Weast Midlands",
+        "East of England": "East of England",
+        "South East": "shoutheast england",
+
+        // --- FRANSA ---
+        "Nord": "Lille",
+        "Pas-de-Calais": "Calais",
+        "Somme": "Amiens",
+        "Seine-Maritime": "Dieppe",
+        "Normandie": "Normandy",
+        "Île-de-France": "Paris",
+        "Ardennes": "Ardennes",
+        "Meuse": "Verdun",
+        "Grand Est": "Alsace-Lorraine",
+        "Meurthe-et-Moselle": "Nancy",
+        "Bourgogne-Franche-Comté": "Bourgogne-Franche-Comte",
+        "Centre-Val de Loire": "Centre-Val de Loire",
+        "Nouvelle-Aquitaine": "Nouvelle_Aquitaine",
+        "Bretagne": "Brittany",
+        "Auvergne-Rhône-Alpes": "Auvergne_Rhone-Alpes",
+        "Occitanie": "Occitaine",
+        "Provence-Alpes-Côte d'Azur": "Region Sud",
+        "Corse": "Corsia",
+
+        // --- YUNANİSTAN & BALKANLAR ---
+        "Thrace": "tharace",
+        "Central Macedonia": "Greek Macedonia",
+        "Eastern Macedonia and Thrace": "Greek Macedonia",
+        "Crete": "Crete",
+        "Rhodes": "Rhodes",
+        "Dobrich": "Dobruja",
+        "Constanta": "Northen dobruja",
+        "Tulcea": "Northen dobruja",
+        "Suceava": "Bucovina",
+        "Maramures": "North Transylvania",
+        "Satu Mare": "North Transylvania",
+        "Brașov": "South Transylvania",
+        "Sibiu": "South Transylvania",
+        "Srem": "Sremska Mitrovica"
+    };
+
+    // 3. Gerçek İl/Eyalet Sınırlarını GeoJSON Olarak Çekme ve Çizme
+    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
+        .then(response => response.json())
+        .then(data => {
+            L.geoJSON(data, {
+                style: function(feature) {
+                    return {
+                        fillColor: '#2563eb',
+                        weight: 1,
+                        opacity: 0.7,
+                        color: '#64748b',
+                        fillOpacity: 0.4
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    let originalName = feature.properties.name || feature.properties.name_en;
+                    let countryName = feature.properties.admin;
+                    
+                    // Pax Historia özel ismini al, yoksa orijinal adı kalsın
+                    let displayName = paxCustomNames[originalName] || originalName;
+
+                    // Fare üzerine gelince parlama
+                    layer.on('mouseover', function() {
+                        this.setStyle({
+                            fillOpacity: 0.8,
+                            fillColor: '#38bdf8',
+                            weight: 2,
+                            color: '#ffffff'
+                        });
+                    });
+
+                    layer.on('mouseout', function() {
+                        this.setStyle({
+                            fillOpacity: 0.4,
+                            fillColor: '#2563eb',
+                            weight: 1,
+                            color: '#64748b'
+                        });
+                    });
+
+                    // Tıklayınca Pax Historia bölge ismini göster
+                    layer.on('click', function(e) {
+                        document.getElementById('selected-info').innerText = `${displayName} (${countryName})`;
+                        
+                        L.popup()
+                            .setLatLng(e.latlng)
+                            .setContent(`<b>Pax Bölgesi:</b> ${displayName}<br><b>Ülke:</b> ${countryName}`)
+                            .openOn(map);
+                    });
+                }
+            }).addTo(map);
+        })
+        .catch(err => {
+            console.error("Sınır verisi yüklenirken hata oluştu:", err);
+            document.getElementById('selected-info').innerText = "Sınır verileri yüklenemedi. İnternet bağlantınızı kontrol edin.";
+        });
+</script>
+</body>
+</html>            color: #38bdf8;
         }
         .leaflet-popup-content-wrapper {
             background: #1e293b;
