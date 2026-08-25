@@ -7,13 +7,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; background-color: #111; color: white; font-family: sans-serif; overflow: hidden; }
-        #map { height: 75vh; width: 100vw; background: #0b1721; }
-        #panel { height: 25vh; padding: 15px; box-sizing: border-box; background: #1a1a1a; text-align: center; border-top: 2px solid #333; }
-        .stats { display: flex; justify-content: space-around; margin: 10px 0; background: #2a2a2a; padding: 8px; border-radius: 8px; }
-        .stat-box { font-size: 13px; }
-        .stat-box span { display: block; font-size: 16px; font-weight: bold; color: #2ecc71; margin-top: 3px; }
+        #map { height: 100vh; width: 100vw; background: #0b1721; }
 
-        /* Leaflet imzasını/yazısını gizleme */
+        /* Leaflet imzasını gizle */
         .leaflet-control-attribution { display: none !important; }
 
         /* DANIŞMAN BUTONU VE PENCERESİ */
@@ -35,6 +31,148 @@
         #chat-close { cursor: pointer; font-weight: bold; }
         #chat-body { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
         .msg { padding: 8px 12px; border-radius: 6px; max-width: 85%; word-wrap: break-word; }
+        .bot { background: #333; align-self: flex-start; border-left: 3px solid #f39c12; }
+        .user { background: #f39c12; color: #111; align-self: flex-end; font-weight: bold; }
+        #chat-input-container { display: flex; padding: 8px; background: #111; }
+        #chat-input { flex: 1; padding: 6px; border: none; border-radius: 3px; background: #222; color: white; outline: none; }
+        #chat-send { background: #f39c12; color: #111; border: none; padding: 6px 12px; margin-left: 5px; border-radius: 3px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <!-- DANIŞMAN BUTONU VE SOHBET KUTUSU -->
+    <button id="advisor-btn" onclick="toggleChat()">💡 Danışman AI</button>
+
+    <div id="advisor-chat">
+        <div id="chat-header">
+            <span>Başdanışman (AI)</span>
+            <span id="chat-close" onclick="toggleChat()">✖</span>
+        </div>
+        <div id="chat-body">
+            <div class="msg bot">Emredin hünkarım! Ben Turkish Pax Historia danışmanınızım. Sorularınızı bekliyorum.</div>
+        </div>
+        <div id="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Danışmana soru sor..." onkeypress="handleKeyPress(event)">
+            <button id="chat-send" onclick="sendMessage()">Gönder</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var GEMINI_API_KEY = "BURAYA_API_KEY_YAZIN";
+
+        var map = L.map('map', { attributionControl: false }).setView([39.9, 32.8], 3);
+
+        // İstediğin Özel Ülke Renkleri
+        var ulkeRenkleri = {
+            "Turkey": "#e74c3c",                  // Türkiye - Kırmızı
+            "Germany": "#f1c40f",                 // Almanya - Sarı
+            "Russia": "#2980b9",                  // Rusya - Mavi
+            "United States of America": "#3498db", // ABD - Açık Mavi
+            "China": "#c0392b",                   // Çin - Kırmızı
+            "France": "#1b4f72",                  // Fransa - Koyu Mavi
+            "United Kingdom": "#a93226",          // İngiltere - Kırmızı
+            "Italy": "#27ae60",                   // İtalya - Yeşil
+            "Greece": "#16a085",                  // Yunanistan - Mavi/Turkuaz
+            "Japan": "#f4f6f7",                   // Japonya - Beyaz/Krem
+            "Spain": "#e67e22",                   // İspanya - Turuncu
+            "Poland": "#8e44ad",                  // Polonya - Mor
+            "Egypt": "#b7950b",                   // Mısır - Çöl Sarısı
+            "Iran": "#117a65",                    // İran - Koyu Yeşil
+            "Saudi Arabia": "#2ecc71",            // Suudi Arabistan - Yeşil
+            "Brazil": "#27ae60",                  // Brezilya - Yeşil
+            "Canada": "#e74c3c",                  // Kanada - Kırmızı
+            "India": "#d35400",                   // Hindistan - Turuncu
+            "Australia": "#f39c12",               // Avustralya - Altın Sarısı
+            "Argentina": "#85c1e9",               // Arjantin - Açık Mavi
+            "Mexico": "#1e8449",                  // Meksika - Koyu Yeşil
+            "Ukraine": "#f4d03f"                  // Ukrayna - Sarı
+        };
+
+        // Otomatik renk üretici (Tüm diğer ülkeler için)
+        function getRastgeleRenk(str) {
+            var hash = 0;
+            for (var i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            var color = '#';
+            for (var j = 0; j < 3; j++) {
+                var value = (hash >> (j * 8)) & 0xFF;
+                color += ('00' + value.toString(16)).substr(-2);
+            }
+            return color;
+        }
+
+        fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function(feature) {
+                        var isim = feature.properties.name;
+                        var renk = ulkeRenkleri[isim] || getRastgeleRenk(isim);
+                        return {
+                            fillColor: renk,
+                            weight: 1,
+                            opacity: 1,
+                            color: '#ffffff',
+                            fillOpacity: 0.8
+                        };
+                    }
+                }).addTo(map);
+            });
+
+        /* DANIŞMAN SOHBET MANTIĞI */
+        function toggleChat() {
+            var chat = document.getElementById('advisor-chat');
+            chat.style.display = (chat.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+
+        async function sendMessage() {
+            var input = document.getElementById('chat-input');
+            var text = input.value.trim();
+            if(!text) return;
+
+            var body = document.getElementById('chat-body');
+            var userMsg = document.createElement('div');
+            userMsg.className = 'msg user';
+            userMsg.innerText = text;
+            body.appendChild(userMsg);
+            input.value = '';
+            body.scrollTop = body.scrollHeight;
+
+            var loadingMsg = document.createElement('div');
+            loadingMsg.className = 'msg bot';
+            loadingMsg.innerText = "Düşünüyor...";
+            body.appendChild(loadingMsg);
+            body.scrollTop = body.scrollHeight;
+
+            var prompt = `Sen Turkish Pax Historia strateji oyununda devlet başkanının Başdanışmanısın. 
+            Oyuncunun sorusu: "${text}".
+            Cevabını bir tarihi/stratejik devlet danışmanı rolünde kısa, resmi ve mantıklı bir şekilde Türkçe ver.`;
+
+            try {
+                var response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                var data = await response.json();
+                var aiReply = data.candidates[0].content.parts[0].text;
+                loadingMsg.innerText = aiReply;
+            } catch (err) {
+                loadingMsg.innerText = "Hata oluştu! API anahtarınızı kontrol edin.";
+            }
+
+            body.scrollTop = body.scrollHeight;
+        }
+    </script>
+</body>
+</html>        .msg { padding: 8px 12px; border-radius: 6px; max-width: 85%; word-wrap: break-word; }
         .bot { background: #333; align-self: flex-start; border-left: 3px solid #f39c12; }
         .user { background: #f39c12; color: #111; align-self: flex-end; font-weight: bold; }
         #chat-input-container { display: flex; padding: 8px; background: #111; }
