@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pax Historia Çakması</title>
+    <title>Turkish Pax Historia</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; background-color: #111; color: white; font-family: sans-serif; overflow: hidden; }
@@ -12,6 +12,9 @@
         .stats { display: flex; justify-content: space-around; margin: 10px 0; background: #2a2a2a; padding: 8px; border-radius: 8px; }
         .stat-box { font-size: 13px; }
         .stat-box span { display: block; font-size: 16px; font-weight: bold; color: #2ecc71; margin-top: 3px; }
+
+        /* Leaflet imzasını/yazısını gizleme */
+        .leaflet-control-attribution { display: none !important; }
 
         /* DANIŞMAN BUTONU VE PENCERESİ */
         #advisor-btn {
@@ -24,14 +27,14 @@
 
         #advisor-chat {
             display: none; position: fixed; bottom: 70px; right: 20px;
-            width: 300px; height: 380px; background: #222; border: 2px solid #f39c12;
+            width: 320px; height: 400px; background: #222; border: 2px solid #f39c12;
             border-radius: 10px; z-index: 1000; flex-direction: column;
             box-shadow: 0 5px 15px rgba(0,0,0,0.7);
         }
         #chat-header { background: #f39c12; color: #111; padding: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
         #chat-close { cursor: pointer; font-weight: bold; }
         #chat-body { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
-        .msg { padding: 8px 12px; border-radius: 6px; max-width: 80%; }
+        .msg { padding: 8px 12px; border-radius: 6px; max-width: 85%; word-wrap: break-word; }
         .bot { background: #333; align-self: flex-start; border-left: 3px solid #f39c12; }
         .user { background: #f39c12; color: #111; align-self: flex-end; font-weight: bold; }
         #chat-input-container { display: flex; padding: 8px; background: #111; }
@@ -54,15 +57,15 @@
     </div>
 
     <!-- DANIŞMAN BUTONU VE SOHBET KUTUSU -->
-    <button id="advisor-btn" onclick="toggleChat()">💡 Danışman</button>
+    <button id="advisor-btn" onclick="toggleChat()">💡 Danışman AI</button>
 
     <div id="advisor-chat">
         <div id="chat-header">
-            <span>Başdanışman</span>
+            <span>Başdanışman (AI)</span>
             <span id="chat-close" onclick="toggleChat()">✖</span>
         </div>
         <div id="chat-body">
-            <div class="msg bot">Emredin hünkarım! Haritadaki ülkeler ve stratejimiz hakkında danışabilirsiniz.</div>
+            <div class="msg bot">Emredin hünkarım! Ben Turkish Pax Historia danışmanınızım. Sorularınızı bekliyorum.</div>
         </div>
         <div id="chat-input-container">
             <input type="text" id="chat-input" placeholder="Danışmana soru sor..." onkeypress="handleKeyPress(event)">
@@ -72,21 +75,26 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        var map = L.map('map').setView([39.9, 32.8], 3);
-        var secilenUlke = null;
+        var GEMINI_API_KEY = "BURAYA_API_KEY_YAZIN";
 
-        // Ülke Renk Haritası
+        var map = L.map('map', { attributionControl: false }).setView([39.9, 32.8], 3);
+        var secilenUlke = "Bilinmiyor";
+        var secilenAsker = "-";
+        var secilenEkonomi = "-";
+
+        // Özelleştirilmiş Ülke Renkleri
         var ulkeRenkleri = {
             "Turkey": "#e74c3c",          // Türkiye - Kırmızı
             "Greece": "#3498db",          // Yunanistan - Açık Mavi
             "France": "#1a5276",          // Fransa - Koyu Mavi
             "Germany": "#f1c40f",         // Almanya - Sarı
-            "Czech Republic": "#2980b9",  // Çekoslovakya / Çekya - Mavi
+            "Czech Republic": "#2980b9",  // Çekya - Mavi
             "United Kingdom": "#9b59b6",  // İngiltere - Mor
             "Italy": "#27ae60",           // İtalya - Yeşil
             "Russia": "#7f8c8d",          // Rusya - Gri
-            "United States of America": "#2e4053", // ABD - Koyu Lacivert
-            "Spain": "#e67e22"            // İspanya - Turuncu
+            "Ukraine": "#f39c12",         // Ukrayna - Turuncu/Sarı
+            "United States of America": "#2e4053", 
+            "Spain": "#e67e22"
         };
 
         fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
@@ -94,44 +102,33 @@
             .then(data => {
                 L.geoJSON(data, {
                     style: function(feature) {
-                        var name = feature.properties.name;
-                        // Özel renk varsa onu kullan, yoksa varsayılan renk ver
-                        var renk = ulkeRenkleri[name] || "#4a5568";
-                        return {
-                            fillColor: renk,
-                            weight: 1,
-                            opacity: 1,
-                            color: '#ffffff',
-                            fillOpacity: 0.7
-                        };
+                        var renk = ulkeRenkleri[feature.properties.name] || "#4a5568";
+                        return { fillColor: renk, weight: 1, opacity: 1, color: '#ffffff', fillOpacity: 0.7 };
                     },
                     onEachFeature: function(feature, layer) {
                         layer.on('click', function(e) {
                             secilenUlke = feature.properties.name;
                             document.getElementById('ulke-adi').innerText = secilenUlke;
                             
-                            var asker = Math.floor(Math.random() * 50000) + 5000;
-                            var ekonomi = "$" + (Math.floor(Math.random() * 900) + 100) + "M";
+                            secilenAsker = (Math.floor(Math.random() * 50000) + 5000).toLocaleString() + " Asker";
+                            secilenEkonomi = "$" + (Math.floor(Math.random() * 900) + 100) + "M";
                             
-                            document.getElementById('asker').innerText = asker.toLocaleString() + " Asker";
-                            document.getElementById('ekonomi').innerText = ekonomi;
-                            document.getElementById('durum').innerText = secilenUlke + " ülkesinin bilgileri görüntüleniyor.";
+                            document.getElementById('asker').innerText = secilenAsker;
+                            document.getElementById('ekonomi').innerText = secilenEkonomi;
+                            document.getElementById('durum').innerText = secilenUlke + " seçildi.";
                         });
                     }
                 }).addTo(map);
             });
 
-        /* DANIŞMAN SOHBET MANTIĞI */
         function toggleChat() {
             var chat = document.getElementById('advisor-chat');
             chat.style.display = (chat.style.display === 'flex') ? 'none' : 'flex';
         }
 
-        function handleKeyPress(e) {
-            if (e.key === 'Enter') sendMessage();
-        }
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
 
-        function sendMessage() {
+        async function sendMessage() {
             var input = document.getElementById('chat-input');
             var text = input.value.trim();
             if(!text) return;
@@ -144,23 +141,32 @@
             input.value = '';
             body.scrollTop = body.scrollHeight;
 
-            setTimeout(function() {
-                var botMsg = document.createElement('div');
-                botMsg.className = 'msg bot';
-                botMsg.innerText = getAdvisorReply(text.toLowerCase());
-                body.appendChild(botMsg);
-                body.scrollTop = body.scrollHeight;
-            }, 600);
-        }
+            var loadingMsg = document.createElement('div');
+            loadingMsg.className = 'msg bot';
+            loadingMsg.innerText = "Düşünüyor...";
+            body.appendChild(loadingMsg);
+            body.scrollTop = body.scrollHeight;
 
-        function getAdvisorReply(q) {
-            if(q.includes('ekonomi') || q.includes('para') || q.includes('kalkın')) {
-                return "Ekonomiyi büyütmek için yatırımları artırmalı ve ticaret yollarını güvenceye almalısınız!";
-            } else if(q.includes('ordu') || q.includes('asker')) {
-                return "Sınır güvenliği için ordu kapasitesini yüksek tutmak her zaman avantaj sağlar.";
-            } else {
-                return "Efendim, haritadaki renkli bölgeleri inceleyerek stratejinizi belirleyebilirsiniz.";
+            var prompt = `Sen Turkish Pax Historia strateji oyununda devlet başkanının Başdanışmanısın. 
+            Şu an seçili ülke: ${secilenUlke}, Asker Gücü: ${secilenAsker}, Ekonomi: ${secilenEkonomi}.
+            Oyuncunun sorusu: "${text}".
+            Cevabını bir tarihi/stratejik devlet danışmanı rolünde kısa, resmi ve mantıklı bir şekilde Türkçe ver.`;
+
+            try {
+                var response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                var data = await response.json();
+                var aiReply = data.candidates[0].content.parts[0].text;
+                loadingMsg.innerText = aiReply;
+            } catch (err) {
+                loadingMsg.innerText = "Hata oluştu! API anahtarınızı kontrol edin.";
             }
+
+            body.scrollTop = body.scrollHeight;
         }
     </script>
 </body>
