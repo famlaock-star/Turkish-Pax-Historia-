@@ -61,6 +61,132 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // API Anahtarın Entegre Edildi
+        var GEMINI_API_KEY = "AQ.Ab8RN6KHDoWUqn20hUifvBxDk-0oQLXFrZAc_NPJhZGjpt8PRQ";
+
+        var map = L.map('map', { attributionControl: false }).setView([39.9, 32.8], 3);
+
+        // Özel İstediğin Ülke Renkleri
+        var ozelRenkler = {
+            "Turkey": "#e74c3c",                  // Türkiye - Kırmızı
+            "Germany": "#f1c40f",                 // Almanya - Sarı
+            "Russia": "#2980b9",                  // Rusya - Mavi
+            "United States of America": "#3498db", // ABD - Açık Mavi
+            "China": "#c0392b"                    // Çin - Kırmızı
+        };
+
+        // Her ülke için benzersiz ve farklı renk üretici
+        function getBenzersizUlkeRengi(isim) {
+            if (ozelRenkler[isim]) return ozelRenkler[isim];
+
+            var hash = 0;
+            for (var i = 0; i < isim.length; i++) {
+                hash = isim.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            var hue = Math.abs(hash) % 360;
+            return "hsl(" + hue + ", 65%, 50%)";
+        }
+
+        fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function(feature) {
+                        var isim = feature.properties.name;
+                        var renk = getBenzersizUlkeRengi(isim);
+                        return {
+                            fillColor: renk,
+                            weight: 1,
+                            opacity: 1,
+                            color: '#ffffff',
+                            fillOpacity: 0.75
+                        };
+                    }
+                }).addTo(map);
+            });
+
+        /* DANIŞMAN SOHBET MANTIĞI */
+        function toggleChat() {
+            var chat = document.getElementById('advisor-chat');
+            chat.style.display = (chat.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+
+        async function sendMessage() {
+            var input = document.getElementById('chat-input');
+            var text = input.value.trim();
+            if(!text) return;
+
+            var body = document.getElementById('chat-body');
+            var userMsg = document.createElement('div');
+            userMsg.className = 'msg user';
+            userMsg.innerText = text;
+            body.appendChild(userMsg);
+            input.value = '';
+            body.scrollTop = body.scrollHeight;
+
+            var loadingMsg = document.createElement('div');
+            loadingMsg.className = 'msg bot';
+            loadingMsg.innerText = "Düşünüyor...";
+            body.appendChild(loadingMsg);
+            body.scrollTop = body.scrollHeight;
+
+            var prompt = `Sen Turkish Pax Historia strateji oyununda devlet başkanının Başdanışmanısın. 
+            Oyuncunun sorusu: "${text}".
+            Cevabını bir tarihi/stratejik devlet danışmanı rolünde kısa, resmi ve mantıklı bir şekilde Türkçe ver.`;
+
+            try {
+                // Güncel Gemini v1beta API Yapılandırması
+                var response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                var data = await response.json();
+                
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    var aiReply = data.candidates[0].content.parts[0].text;
+                    loadingMsg.innerText = aiReply;
+                } else {
+                    loadingMsg.innerText = "Danışman cevap üretemedi, tekrar deneyin.";
+                }
+            } catch (err) {
+                loadingMsg.innerText = "Hata oluştu! Lütfen internet bağlantınızı veya API durumunu kontrol edin.";
+            }
+
+            body.scrollTop = body.scrollHeight;
+        }
+    </script>
+</body>
+</html>        #chat-input { flex: 1; padding: 6px; border: none; border-radius: 3px; background: #222; color: white; outline: none; }
+        #chat-send { background: #f39c12; color: #111; border: none; padding: 6px 12px; margin-left: 5px; border-radius: 3px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <!-- DANIŞMAN BUTONU VE SOHBET KUTUSU -->
+    <button id="advisor-btn" onclick="toggleChat()">💡 Danışman AI</button>
+
+    <div id="advisor-chat">
+        <div id="chat-header">
+            <span>Başdanışman (AI)</span>
+            <span id="chat-close" onclick="toggleChat()">✖</span>
+        </div>
+        <div id="chat-body">
+            <div class="msg bot">Emredin hünkarım! Ben Turkish Pax Historia danışmanınızım. Sorularınızı bekliyorum.</div>
+        </div>
+        <div id="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Danışmana soru sor..." onkeypress="handleKeyPress(event)">
+            <button id="chat-send" onclick="sendMessage()">Gönder</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
         var GEMINI_API_KEY = "BURAYA_API_KEY_YAZIN";
 
         var map = L.map('map', { attributionControl: false }).setView([39.9, 32.8], 3);
