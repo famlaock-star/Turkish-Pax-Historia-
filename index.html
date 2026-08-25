@@ -6,35 +6,398 @@
     <title>Turkish Pax Historia</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; background-color: #111; color: white; font-family: sans-serif; overflow: hidden; }
-        #map { height: 100vh; width: 100vw; background: #0b1721; }
-
-        /* Leaflet imzasını gizle */
+        body { margin: 0; padding: 0; background-color: #0b1d3a; color: #333; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        #map { height: 100vh; width: 100vw; background: #0b1d3a; }
         .leaflet-control-attribution { display: none !important; }
 
-        /* DANIŞMAN BUTONU VE PENCERESİ */
         #advisor-btn {
-            position: fixed; bottom: 20px; right: 20px;
-            background: #f39c12; color: #111; border: none;
-            padding: 12px 18px; border-radius: 50px; font-weight: bold;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; z-index: 1000;
+            position: fixed; bottom: 25px; right: 25px;
+            background: #f39c12; color: #fff; border: none;
+            padding: 14px 24px; border-radius: 50px; font-weight: bold; font-size: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4); cursor: pointer; z-index: 1000;
+            transition: all 0.2s ease-in-out;
         }
-        #advisor-btn:hover { background: #e67e22; }
+        #advisor-btn:hover { background: #d35400; transform: scale(1.05); }
 
-        #advisor-chat {
-            display: none; position: fixed; bottom: 70px; right: 20px;
-            width: 320px; height: 400px; background: #222; border: 2px solid #f39c12;
-            border-radius: 10px; z-index: 1000; flex-direction: column;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.7);
+        #advisor-modal {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh; background: #ffffff;
+            z-index: 2000; flex-direction: column; justify-content: space-between;
+            box-sizing: border-box; padding: 20px;
         }
-        #chat-header { background: #f39c12; color: #111; padding: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-        #chat-close { cursor: pointer; font-weight: bold; }
-        #chat-body { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
-        .msg { padding: 8px 12px; border-radius: 6px; max-width: 85%; word-wrap: break-word; }
-        .bot { background: #333; align-self: flex-start; border-left: 3px solid #f39c12; }
-        .user { background: #f39c12; color: #111; align-self: flex-end; font-weight: bold; }
-        #chat-input-container { display: flex; padding: 8px; background: #111; }
-        #chat-input { flex: 1; padding: 6px; border: none; border-radius: 3px; background: #222; color: white; outline: none; }
+
+        .modal-header-actions {
+            position: absolute; top: 15px; right: 20px; display: flex; gap: 10px; z-index: 2100;
+        }
+
+        .header-btn {
+            cursor: pointer; font-size: 12px; font-weight: bold; color: #ffffff;
+            border: none; padding: 6px 12px; border-radius: 6px; transition: background 0.2s;
+        }
+        #clear-chat-btn { background: #7f8c8d; }
+        #clear-chat-btn:hover { background: #95a5a6; }
+        #modal-close-btn { background: #c0392b; }
+        #modal-close-btn:hover { background: #e74c3c; }
+
+        #advisor-content {
+            flex: 1; display: flex; flex-direction: column;
+            max-width: 900px; width: 100%; margin: 30px auto 0 auto;
+            box-sizing: border-box; overflow: hidden;
+        }
+
+        #chat-wrapper {
+            flex: 1; overflow-y: auto; background: #f8f9fa;
+            border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 10px;
+            padding: 15px; scroll-behavior: smooth;
+        }
+
+        #chat-body { display: flex; flex-direction: column; gap: 12px; justify-content: flex-start; }
+
+        .msg { padding: 12px 16px; border-radius: 8px; max-width: 85%; line-height: 1.5; font-size: 14px; white-space: pre-wrap; }
+        .bot { background: #ffffff; border-left: 4px solid #f39c12; color: #2c3e50; box-shadow: 0 2px 5px rgba(0,0,0,0.05); align-self: flex-start; }
+        .user { background: #3498db; color: #ffffff; align-self: flex-end; font-weight: 500; }
+        .error { background: #fde8e8; border-left: 4px solid #e74c3c; color: #c0392b; align-self: flex-start; }
+
+        #quick-questions { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+        .quick-btn {
+            background: #edf2f7; color: #4a5568; border: 1px solid #cbd5e0;
+            padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; flex: 1; min-width: 140px; text-align: center;
+        }
+        .quick-btn:hover:not(:disabled) { background: #f39c12; color: #fff; border-color: #f39c12; }
+        .quick-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #chat-input-container { display: flex; gap: 10px; }
+        #chat-input {
+            flex: 1; padding: 12px; border: 1px solid #cbd5e0; border-radius: 6px;
+            font-size: 14px; outline: none; background: #fff; color: #333;
+        }
+        #chat-input:focus { border-color: #3498db; }
+        #chat-input:disabled { background: #e2e8f0; cursor: not-allowed; }
+
+        #chat-send {
+            background: #27ae60; color: #fff; border: none; padding: 0 20px;
+            border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;
+            transition: background 0.2s;
+        }
+        #chat-send:hover:not(:disabled) { background: #219150; }
+        #chat-send:disabled { background: #95a5a6; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <button id="advisor-btn" onclick="toggleAdvisorModal()">💡 Danışman AI</button>
+
+    <div id="advisor-modal">
+        <div class="modal-header-actions">
+            <button id="clear-chat-btn" class="header-btn" onclick="clearChatHistory()">🧹 Geçmişi Temizle</button>
+            <button id="modal-close-btn" class="header-btn" onclick="toggleAdvisorModal()">⬅️ Başdanışmandan Çık</button>
+        </div>
+
+        <div id="advisor-content">
+            <div id="chat-wrapper">
+                <div id="chat-body"></div>
+            </div>
+
+            <div id="quick-questions">
+                <button class="quick-btn" onclick="sendQuickQuestion('Jeopolitik denge ne durumda?')">🌐 Jeopolitik Denge</button>
+                <button class="quick-btn" onclick="sendQuickQuestion('Sınır komşularım ile durumum nasıl?')">⚔️ Komşu İlişkileri</button>
+                <button class="quick-btn" onclick="sendQuickQuestion('Ekonomim ne durumda?')">💰 Ekonomi Analizi</button>
+            </div>
+
+            <div id="chat-input-container">
+                <input type="text" id="chat-input" placeholder="Danışmanınıza bir soru sorun..." onkeypress="handleKeyPress(event)">
+                <button id="chat-send" onclick="sendMessage()">Gönder</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var GEMINI_API_KEY = "AQ.Ab8RN6JC0PySn1_SVRc8hm_9FrJgzjgvsty4MW8eTpIyRPlvUA";
+
+        var chatHistory = [];
+        var isGenerating = false;
+
+        var map = L.map('map', { 
+            attributionControl: false, preferCanvas: true,
+            zoomAnimation: true, worldCopyJump: true,
+            minZoom: 2, maxZoom: 7
+        }).setView([39.9, 32.8], 3);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd', maxZoom: 19
+        }).addTo(map);
+
+        // Küresel Özel Ülke Renk Haritası
+        var ozelRenkler = {
+            // --- AVRUPA ---
+            "Ireland": "#2ecc71", "United Kingdom": "#a0522d", "France": "#2980b9",
+            "Belgium": "#f1c40f", "Netherlands": "#e67e22", "Luxembourg": "#5dade2",
+            "Germany": "#bdc3c7", "Denmark": "#d35400", "Switzerland": "#e74c3c",
+            "Italy": "#f39c12", "Austria": "#f1c40f", "Czech Republic": "#1b4f72",
+            "Poland": "#ff79ac", "Slovakia": "#d0d3d4", "Hungary": "#8e44ad",
+            "Croatia": "#cd853f", "Montenegro": "#7f8c8d", "Republic of Serbia": "#154360",
+            "Romania": "#f4d03f", "Bulgaria": "#1e8449", "Kosovo": "#f39c12",
+            "Albania": "#bb8fce", "Macedonia": "#6c3483", "Greece": "#85c1e9",
+            "Moldova": "#dc7633", "Ukraine": "#3498db", "Russia": "#27ae60",
+            "Lithuania": "#c39bd3", "Latvia": "#ec7063", "Estonia": "#7fb3d5",
+            "Belarus": "#f5b041", "Turkey": "#e74c3c", "Norway": "#8b4513",
+            "Sweden": "#5adbb5", "Finland": "#fdfefe", "Iceland": "#ffffff",
+
+            // --- ASYA & ORTA DOĞU ---
+            "Georgia": "#f1c40f", "Armenia": "#1b4f72", "Azerbaijan": "#c39bd3",
+            "Iran": "#27ae60", "Iraq": "#e67e22", "Syria": "#556b2f",
+            "Lebanon": "#f39c12", "Israel": "#7fb3d5", "Palestine": "#1e8449",
+            "Jordan": "#f4d03f", "Saudi Arabia": "#bdc3c7", "Kuwait": "#f39c12",
+            "Qatar": "#8e44ad", "United Arab Emirates": "#ec7063", "Oman": "#d4ac0d",
+            "Yemen": "#8b4513", "Kazakhstan": "#5dade2", "Uzbekistan": "#f1c40f",
+            "Turkmenistan": "#c0392b", "Kyrgyzstan": "#48d1cc", "Tajikistan": "#e67e22",
+            "Afghanistan": "#ffffff", "Pakistan": "#145a32", "China": "#e74c3c",
+            "India": "#d35400", "Mongolia": "#f4d03f", "Nepal": "#7d3c98",
+            "Myanmar": "#8e44ad", "Vietnam": "#a569bd", "Bangladesh": "#6e2c00",
+            "Sri Lanka": "#873600", "Bhutan": "#f39c12", "Thailand": "#7f8c8d",
+            "Cambodia": "#2ecc71", "Laos": "#d35400", "North Korea": "#34495e",
+            "South Korea": "#fdfefe", "Taiwan": "#2980b9", "Japan": "#95a5a6",
+
+            // --- GÜNEYDOĞU ASYA & OKYANUSYA ---
+            "Malaysia": "#ec7063",
+            "Indonesia": "#e67e22",
+            "Brunei": "#8b4513",
+            "Philippines": "#f1c40f",
+            "Papua New Guinea": "#2980b9",
+            "East Timor": "#f39c12",
+            "Australia": "#2e4a3e",                  // Koyu Yeşilimsi
+
+            // --- AFRİKA ---
+            "Egypt": "#34495e",                      // Koyu Gri
+            "Libya": "#27ae60",                      // Yeşil
+            "Tunisia": "#e67e22",                    // Turuncu
+            "Algeria": "#2980b9",                    // Mavi
+            "Morocco": "#5c2c16",                    // Koyu Kahverengi
+            "Western Sahara": "#d35400",             // Polisario Front (Koyu Turuncu)
+            "Mauritania": "#ec7063",                 // Açık Kırmızı
+            "Mali": "#f1c40f",                       // Sarı
+            "Niger": "#fff8dc",                      // Krem
+            "Chad": "#900c3f",                       // Koyu Kırmızımsı
+            "Sudan": "#8e44ad",                      // Mor
+            "Eritrea": "#8b4513",                    // Kahverengi
+            "Djibouti": "#3498db",                   // Mavi
+            "Somaliland": "#e74c3c",                 // Kırmızı
+            "Somalia": "#e67e22",                    // Turuncu
+            "Ethiopia": "#f4d03f",                   // Sarı
+            "South Sudan": "#bb8fce",                // Açık Mor
+            "Central African Republic": "#104e8b",   // Koyu Su Mavisi
+            "Cameroon": "#e67e22",                   // Turuncu
+            "Nigeria": "#a0522d",                    // Açık Kahverengi
+            "Benin": "#d35400",                      // Koyu Turuncu
+            "Togo": "#7f8c8d",                       // Koyu Gri
+            "Ghana": "#ec7063",                      // Açık Kırmızı
+            "Burkina Faso": "#008b8b",               // Koyu Su Mavisi
+            "Ivory Coast": "#d35400",                // Koyu Turuncu (Côte d'Ivoire)
+            "Guinea": "#90ee90",                     // Açık Yeşilimsi
+            "Guinea Bissau": "#2e8b57",              // Koyu Su Yeşili
+            "Senegal": "#808000",                    // Haki / Kusmuk Yeşili
+            "Gambia": "#2980b9",                     // Mavi
+            "Liberia": "#e0eee0",                    // Krem Mavi Tonlu
+            "Sierra Leone": "#e67e22",               // Turuncu
+            "Kenya": "#8b4513",                      // Kahverengi
+            "Uganda": "#87cefa",                     // Açık Mavi
+            "Democratic Republic of the Congo": "#90ee90", // Açık Yeşil
+            "Republic of the Congo": "#f1c40f",      // Sarı
+            "Gabon": "#900c3f",                      // Koyu Kırmızı
+            "Equatorial Guinea": "#d4ac0d",          // Koyu Sarı
+            "Angola": "#4a5d4e",                     // Koyu Gri-Yeşil
+            "Zambia": "#d4ac0d",                     // Koyu Sarı
+            "Rwanda": "#00ebd6",                     // Su Mavisi
+            "Burundi": "#e67e22",                    // Turuncu
+            "United Republic of Tanzania": "#c39bd3",// Açık Mor
+            "Malawi": "#a6acaf",                     // Açık Koyu Gri
+            "Mozambique": "#2ecc71",                 // Açık Yeşil
+            "Zimbabwe": "#7fffd4",                   // Açık Su Mavisi
+            "Botswana": "#87cefa",                   // Açık Mavi
+            "Namibia": "#8b4513",                    // Kahverengi
+            "South Africa": "#8e44ad",               // Mor
+            "Lesotho": "#e67e22",                    // Turuncu
+            "Swaziland": "#c0392b",                  // Koyu Kırmızı (Eswatini)
+            "Madagascar": "#d35400",                 // Koyu Turuncu
+
+            // --- KUZEY & GÜNEY AMERİKA ---
+            "Greenland": "#d2b48c",                  // Açık Kahverengi
+            "Canada": "#ec7063",                     // Açık Kırmızı
+            "United States of America": "#87cefa",   // Açık Mavi
+            "Mexico": "#27ae60",                     // Yeşil
+            "Cuba": "#8e44ad",                       // Mor
+            "Guatemala": "#7d3c98",                  // Mor
+            "Belize": "#f1c40f",                     // Sarı
+            "Honduras": "#5f9ea0",                   // Su Mavisi / Gri
+            "El Salvador": "#1b4f72",                // Koyu Mavi
+            "Nicaragua": "#900c3f",                  // Koyu Kırmızı
+            "Costa Rica": "#98fb98",                 // Su Açık Yeşili
+            "Panama": "#e67e22",                     // Turuncu
+            "The Bahamas": "#f39c12",                // Turuncu
+            "Haiti": "#00ebd6",                      // Su Mavisi
+            "Dominican Republic": "#8e44ad",         // Mor
+            "Colombia": "#f1c40f",                   // Sarı
+            "Venezuela": "#2e8b57",                  // Koyu-Açık Yeşil
+            "Guyana": "#00ebd6",                     // Su Mavisi
+            "Suriname": "#e67e22",                   // Turuncu
+            "Brazil": "#145a32",                     // Koyu Yeşil
+            "Peru": "#5f9ea0",                       // Su Mavisi / Gri
+            "Ecuador": "#e67e22",                    // Turuncu
+            "Bolivia": "#f1c40f",                    // Sarı
+            "Paraguay": "#8e44ad",                   // Mor
+            "Chile": "#c39bd3",                      // Açık Mor
+            "Argentina": "#87cefa",                  // Açık Mavi
+            "Uruguay": "#154360",                    // Koyu Mavi
+
+            // --- ANTARKTİKA ---
+            "Antarctica": "#555555"                  // Sahipsiz Gri
+        };
+
+        function getBenzersizUlkeRengi(isim) {
+            if (ozelRenkler[isim]) return ozelRenkler[isim];
+            var hash = 0;
+            for (var i = 0; i < isim.length; i++) { hash = isim.charCodeAt(i) + ((hash << 5) - hash); }
+            var hue = Math.abs(hash) % 360;
+            return "hsl(" + hue + ", 45%, 35%)";
+        }
+
+        fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function(feature) {
+                        return { 
+                            fillColor: getBenzersizUlkeRengi(feature.properties.name), 
+                            weight: 1, 
+                            opacity: 0.9, 
+                            color: '#1a1a1a', 
+                            fillOpacity: 0.85 
+                        };
+                    },
+                    onEachFeature: function(feature, layer) {
+                        layer.on({
+                            mouseover: function(e) { e.target.setStyle({ fillOpacity: 0.98, weight: 2, color: '#ffffff' }); },
+                            mouseout: function(e) { e.target.setStyle({ fillOpacity: 0.85, weight: 1, color: '#1a1a1a' }); }
+                        });
+                    }
+                }).addTo(map);
+            });
+
+        window.onload = function() {
+            var savedHistory = localStorage.getItem('tph_chat_history');
+            if (savedHistory) {
+                chatHistory = JSON.parse(savedHistory);
+                renderChatHistory();
+            }
+        };
+
+        function renderChatHistory() {
+            var body = document.getElementById('chat-body');
+            body.innerHTML = '';
+            chatHistory.forEach(function(item) {
+                var msg = document.createElement('div');
+                msg.className = 'msg ' + item.role;
+                msg.innerText = item.text;
+                body.appendChild(msg);
+            });
+            scrollToBottom();
+        }
+
+        function saveMessage(role, text) {
+            chatHistory.push({ role: role, text: text });
+            localStorage.setItem('tph_chat_history', JSON.stringify(chatHistory));
+        }
+
+        function clearChatHistory() {
+            if (isGenerating) return;
+            if (confirm("Danışman sohbet geçmişini silmek istediğinize emin misiniz?")) {
+                chatHistory = [];
+                localStorage.removeItem('tph_chat_history');
+                document.getElementById('chat-body').innerHTML = '';
+            }
+        }
+
+        function toggleAdvisorModal() {
+            var modal = document.getElementById('advisor-modal');
+            modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+
+        function sendQuickQuestion(questionText) {
+            if (isGenerating) return;
+            document.getElementById('chat-input').value = questionText;
+            sendMessage();
+        }
+
+        function setControlsDisabled(disabled) {
+            isGenerating = disabled;
+            document.getElementById('chat-input').disabled = disabled;
+            document.getElementById('chat-send').disabled = disabled;
+            document.getElementById('chat-send').innerText = disabled ? "Yanıtlanıyor..." : "Gönder";
+            document.querySelectorAll('.quick-btn').forEach(btn => btn.disabled = disabled);
+        }
+
+        function scrollToBottom() {
+            var wrapper = document.getElementById('chat-wrapper');
+            setTimeout(function() { wrapper.scrollTop = wrapper.scrollHeight; }, 50);
+        }
+
+        async function fetchGeminiApi(modelName, promptText) {
+            var url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent";
+            var fullPrompt = "Sen Turkish Pax Historia strateji oyununda liderin tecrübeli Başdanışmanısın. Oyuncunun sorusu: '" + promptText + "'. Yanıtını verirken önce mevcut durumun kısa analizini yap, ardından mutlaka '📌 Tavsiye Edilen Stratejik Hamleler:' başlığı altında 2-3 somut eylem maddesi sun. Türkçe yanıt ver.";
+
+            var response = await fetch(url, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-goog-api-key': GEMINI_API_KEY
+                },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: fullPrompt }] }]
+                })
+            });
+
+            var data = await response.json();
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                return data.candidates[0].content.parts[0].text;
+            } else if (data.error) {
+                throw new Error(data.error.message);
+            }
+            throw new Error("Yanıt alınamadı");
+        }
+
+        async function fetchGeminiResponse(promptText) {
+            try {
+                return await fetchGeminiApi("gemini-2.5-flash", promptText);
+            } catch (err) {
+                return await fetchGeminiApi("gemini-3.5-flash-lite", promptText);
+            }
+        }
+
+        async function sendMessage() {
+            if (isGenerating) return;
+
+            var input = document.getElementById('chat-input');
+            var text = input.value.trim();
+            if(!text) return;
+
+            setControlsDisabled(true);
+            var body = document.getElementById('chat-body');
+
+            saveMessage('user', text);
+            var userMsg = document.createElement('div');
+            userMsg.className = 'msg user';
+            userMsg.innerText = text;
+            body.appendChild(userMsg);
+            input.value = '';
+            scrollToBottom();
+
+            var loadingMsg = document.        #chat-input { flex: 1; padding: 6px; border: none; border-radius: 3px; background: #222; color: white; outline: none; }
         #chat-send { background: #f39c12; color: #111; border: none; padding: 6px 12px; margin-left: 5px; border-radius: 3px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
