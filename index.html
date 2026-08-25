@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Turkish Pax Historia</title>
+    <title>Turkish Pax Historia - Bölgesel Harita</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; background-color: #111; color: white; font-family: sans-serif; overflow: hidden; }
@@ -35,6 +35,214 @@
         .user { background: #f39c12; color: #111; align-self: flex-end; font-weight: bold; }
         #chat-input-container { display: flex; padding: 8px; background: #111; }
         #chat-input { flex: 1; padding: 6px; border: none; border-radius: 3px; background: #222; color: white; outline: none; }
+        #chat-send { background: #f39c12; color: #111; border: none; padding: 6px 12px; margin-left: 5px; border-radius: 3px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <!-- DANIŞMAN BUTONU VE SOHBET KUTUSU -->
+    <button id="advisor-btn" onclick="toggleChat()">💡 Danışman AI</button>
+
+    <div id="advisor-chat">
+        <div id="chat-header">
+            <span>Başdanışman (AI)</span>
+            <span id="chat-close" onclick="toggleChat()">✖</span>
+        </div>
+        <div id="chat-body">
+            <div class="msg bot">Emredin hünkarım! Ben Turkish Pax Historia danışmanınızım. Sorularınızı bekliyorum.</div>
+        </div>
+        <div id="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Danışmana soru sor..." onkeypress="handleKeyPress(event)">
+            <button id="chat-send" onclick="sendMessage()">Gönder</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var GEMINI_API_KEY = "BURAYA_API_KEY_YAZIN";
+
+        var map = L.map('map', { attributionControl: false }).setView([39.0, 35.0], 5);
+
+        // Türkçe Ülke ve Bölge/Şehir İsim Sözlüğü
+        var turkceUlkeIsimleri = {
+            "Turkey": "Türkiye",
+            "Germany": "Almanya",
+            "Russia": "Rusya",
+            "United States of America": "Amerika Birleşik Devletleri",
+            "China": "Çin",
+            "France": "Fransa",
+            "United Kingdom": "İngiltere",
+            "Italy": "İtalya",
+            "Greece": "Yunanistan",
+            "Japan": "Japonya",
+            "Iran": "İran",
+            "Iraq": "Irak",
+            "Syria": "Suriye",
+            "Egypt": "Mısır"
+        };
+
+        // Türkiye'nin İllerini Belirttiğin Şekilde Büyük Bölgelere Eşleme
+        function getTurkceBolgeAdi(country, originalName) {
+            if (country === "Turkey" || country === "Türkiye") {
+                var name = originalName.toLowerCase();
+                
+                // Van ve Doğu Anadolu (Van Tarafları)
+                if (["van", "hakkari", "bitlis", "muş", "ağrı", "ığdır"].some(i => name.includes(i))) return "Van";
+                
+                // Trabzon ve Doğu Karadeniz (Kars / Erzurum dahil)
+                if (["trabzon", "rize", "artvin", "giresun", "kars", "ardahan", "erzurum", "gümüşhane", "bayburt"].some(i => name.includes(i))) return "Trabzon";
+                
+                // Karadeniz Kıyılarının Kalan Yarısı (Orta ve Batı Karadeniz)
+                if (["ordu", "samsun", "sinop", "kastamonu", "zonguldak", "bartın", "karabük", "düzce", "amasya", "tokat", "çorum"].some(i => name.includes(i))) return "Karadeniz Kıyıları";
+
+                // İstanbul
+                if (["istanbul", "tekirdağ", "kırklareli", "edirne"].some(i => name.includes(i))) return "İstanbul";
+
+                // Bursa ve Doğu Marmara
+                if (["bursa", "yalova", "kocaeli", "sakarya", "bilecik", "balıkesir", "çanakkale"].some(i => name.includes(i))) return "Bursa";
+
+                // İzmir ve Ege
+                if (["izmir", "manisa", "aydın", "denizli", "ușak", "kutahya", "kütahya"].some(i => name.includes(i))) return "İzmir";
+
+                // Muğla & Antalya (Güney / Akdeniz Kıyıları)
+                if (["muğla", "antalya", "burdur", "isparta"].some(i => name.includes(i))) return "Antalya ve Muğla";
+
+                // Güneydoğu / İç Anadolu Kalanı
+                if (["ankara", "eskişehir", "konya", "kayseri", "sivas"].some(i => name.includes(i))) return "Ankara";
+
+                return "Adana"; // Çukurova ve Güneydoğu bölgesi
+            }
+
+            // Yabancı ülkelerdeki genel eyalet isimlerini Türkçeleştirme/Temizleme
+            if (!originalName) return "Bölge";
+            
+            return originalName
+                .replace(/State/g, "Eyaleti")
+                .replace(/Province/g, "Bölgesi")
+                .replace(/Region/g, "Bölgesi")
+                .replace(/Oblast/g, "Eyaleti")
+                .replace(/North/g, "Kuzey")
+                .replace(/South/g, "Güney")
+                .replace(/East/g, "Doğu")
+                .replace(/West/g, "Batı")
+                .replace(/Central/g, "Merkez");
+        }
+
+        // Ana Ülke Renk Gamı
+        var ulkeHueMap = {
+            "Turkey": 0,                   // Kırmızı
+            "Germany": 50,                 // Sarı
+            "Russia": 210,                 // Mavi
+            "United States of America": 200, // Açık Mavi
+            "China": 350,                  // Koyu Kırmızı
+            "France": 220,                 // Lacivert
+            "United Kingdom": 340,         // Bordo
+            "Italy": 130,                  // Yeşil
+            "Greece": 170                  // Turkuaz
+        };
+
+        function getCountryHue(countryName) {
+            if (ulkeHueMap[countryName] !== undefined) return ulkeHueMap[countryName];
+            var hash = 0;
+            for (var i = 0; i < countryName.length; i++) {
+                hash = countryName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return Math.abs(hash) % 360;
+        }
+
+        function getProvinceColor(countryName, regionName) {
+            var baseHue = getCountryHue(countryName);
+            var hash = 0;
+            for (var i = 0; i < regionName.length; i++) {
+                hash = regionName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            var lightness = 38 + (Math.abs(hash) % 25); 
+            return "hsl(" + baseHue + ", 75%, " + lightness + "%)";
+        }
+
+        // Admin-1 Harita Verisi
+        fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function(feature) {
+                        var country = feature.properties.admin || feature.properties.sovereignt;
+                        var originalProvince = feature.properties.name || "";
+                        var bolgeAdi = getTurkceBolgeAdi(country, originalProvince);
+                        var color = getProvinceColor(country, bolgeAdi);
+                        
+                        return {
+                            fillColor: color,
+                            weight: 1,
+                            opacity: 1,
+                            color: '#111111',
+                            fillOpacity: 0.8
+                        };
+                    },
+                    onEachFeature: function(feature, layer) {
+                        var country = feature.properties.admin || feature.properties.sovereignt;
+                        var originalProvince = feature.properties.name || "";
+                        
+                        var turkceUlke = turkceUlkeIsimleri[country] || country;
+                        var bolgeAdi = getTurkceBolgeAdi(country, originalProvince);
+
+                        layer.bindPopup("<b>" + turkceUlke + "</b><br>" + bolgeAdi);
+                    }
+                }).addTo(map);
+            });
+
+        /* DANIŞMAN SOHBET MANTIĞI */
+        function toggleChat() {
+            var chat = document.getElementById('advisor-chat');
+            chat.style.display = (chat.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+
+        async function sendMessage() {
+            var input = document.getElementById('chat-input');
+            var text = input.value.trim();
+            if(!text) return;
+
+            var body = document.getElementById('chat-body');
+            var userMsg = document.createElement('div');
+            userMsg.className = 'msg user';
+            userMsg.innerText = text;
+            body.appendChild(userMsg);
+            input.value = '';
+            body.scrollTop = body.scrollHeight;
+
+            var loadingMsg = document.createElement('div');
+            loadingMsg.className = 'msg bot';
+            loadingMsg.innerText = "Düşünüyor...";
+            body.appendChild(loadingMsg);
+            body.scrollTop = body.scrollHeight;
+
+            var prompt = `Sen Turkish Pax Historia strateji oyununda devlet başkanının Başdanışmanısın. 
+            Oyuncunun sorusu: "${text}".
+            Cevabını bir tarihi/stratejik devlet danışmanı rolünde kısa, resmi ve mantıklı bir şekilde Türkçe ver.`;
+
+            try {
+                var response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                var data = await response.json();
+                var aiReply = data.candidates[0].content.parts[0].text;
+                loadingMsg.innerText = aiReply;
+            } catch (err) {
+                loadingMsg.innerText = "Hata oluştu! API anahtarınızı kontrol edin.";
+            }
+
+            body.scrollTop = body.scrollHeight;
+        }
+    </script>
+</body>
+</html>        #chat-input { flex: 1; padding: 6px; border: none; border-radius: 3px; background: #222; color: white; outline: none; }
         #chat-send { background: #f39c12; color: #111; border: none; padding: 6px 12px; margin-left: 5px; border-radius: 3px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
