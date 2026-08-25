@@ -3,38 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pax Historia Europe Map</title>
+    <title>Harita</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            background-color: #0b0f19;
-            color: #f8fafc;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #header {
-            height: 60px;
-            background: #1e293b;
-            border-bottom: 2px solid #334155;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 15px;
-        }
-        #info { font-weight: bold; color: #38bdf8; font-size: 15px; }
+        body { background: #0b0f19; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        #header { height: 50px; background: #1e293b; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 2px solid #334155; }
+        #info { font-weight: bold; color: #38bdf8; font-size: 14px; }
         #palette { display: flex; gap: 8px; }
-        .color-btn {
-            width: 28px; height: 28px; border-radius: 50%; border: 2px solid #ffffff; cursor: pointer;
-        }
-        #map-container {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #0f172a;
+        .color-btn { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff; cursor: pointer; }
+        #map { flex: 1; width: 100%; background: #0b0f19; }
+        .leaflet-container { background: #0b0f19 !important; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <div id="info">Seçilen Bölge: Yok</div>
+    <div id="palette">
+        <!-- Orijinal Renk Paletin -->
+        <div class="color-btn" style="background:#e11d48;" onclick="setPaint('#e11d48')"></div>
+        <div class="color-btn" style="background:#2563eb;" onclick="setPaint('#2563eb')"></div>
+        <div class="color-btn" style="background:#16a34a;" onclick="setPaint('#16a34a')"></div>
+        <div class="color-btn" style="background:#d97706;" onclick="setPaint('#d97706')"></div>
+        <div class="color-btn" style="background:#9333ea;" onclick="setPaint('#9333ea')"></div>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    let activeColor = '#e11d48';
+    function setPaint(color) { activeColor = color; }
+
+    // Normal Dünya Haritası
+    const map = L.map('map', { zoomControl: false }).setView([39.0, 35.0], 4);
+
+    // Koyu Tema Arka Plan
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+        maxZoom: 7, minZoom: 2
+    }).addTo(map);
+
+    // Normal Sınır Verisi
+    fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
+        .then(res => res.json())
+        .then(data => {
+            L.geoJSON(data, {
+                style: {
+                    fillColor: '#334155',
+                    fillOpacity: 0.8,
+                    color: '#0b0f19',
+                    weight: 1.5
+                },
+                onEachFeature: (feature, layer) => {
+                    layer.on('click', function() {
+                        this.setStyle({
+                            fillColor: activeColor,
+                            fillOpacity: 0.9,
+                            color: '#ffffff',
+                            weight: 2
+                        });
+                        
+                        const countryName = feature.properties.name || "Bölge";
+                        document.getElementById('info').innerText = 'Seçilen Bölge: ' + countryName;
+                    });
+                }
+            }).addTo(map);
+        });
+</script>
+</body>
+</html>            background: #0f172a;
             padding: 10px;
         }
         svg {
