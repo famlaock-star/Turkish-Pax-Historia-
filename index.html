@@ -3,38 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pax Historia Map Clone</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Pax Historia Europe Map</title>
     <style>
-        body, html {
-            margin: 0; padding: 0; height: 100%; width: 100%;
-            background-color: #050a0e;
-            font-family: 'Courier New', Courier, monospace;
-            color: #e2e8f0;
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0b0f19;
+            color: #f8fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
             overflow: hidden;
         }
-        #ui-header {
-            height: 45px;
-            background: #0f172a;
-            border-bottom: 2px solid #1e293b;
+        #header {
+            height: 60px;
+            background: #1e293b;
+            border-bottom: 2px solid #334155;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            z-index: 1000;
-            position: relative;
+            padding: 0 15px;
         }
-        #map {
-            height: calc(100% - 45px);
+        #info { font-weight: bold; color: #38bdf8; font-size: 15px; }
+        #palette { display: flex; gap: 8px; }
+        .color-btn {
+            width: 28px; height: 28px; border-radius: 50%; border: 2px solid #ffffff; cursor: pointer;
+        }
+        #map-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0f172a;
+            padding: 10px;
+        }
+        svg {
             width: 100%;
-            background: #050a0e; /* Pax Deniz Rengi */
+            height: 100%;
+            max-width: 1000px;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.5));
         }
-        .pax-title { font-weight: bold; color: #f59e0b; font-size: 16px; letter-spacing: 1px; }
-        .pax-status { font-size: 14px; color: #38bdf8; font-weight: bold; }
+        .province {
+            fill: #334155;
+            stroke: #0f172a;
+            stroke-width: 2;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .province:hover {
+            fill-opacity: 0.8;
+            stroke: #ffffff;
+            stroke-width: 3;
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <div id="info">Seçilen Eyalet: Yok</div>
+    <div id="palette">
+        <div class="color-btn" style="background:#e11d48;" onclick="setPaint('#e11d48')"></div>
+        <div class="color-btn" style="background:#2563eb;" onclick="setPaint('#2563eb')"></div>
+        <div class="color-btn" style="background:#16a34a;" onclick="setPaint('#16a34a')"></div>
+        <div class="color-btn" style="background:#d97706;" onclick="setPaint('#d97706')"></div>
+        <div class="color-btn" style="background:#9333ea;" onclick="setPaint('#9333ea')"></div>
+    </div>
+</div>
+
+<div id="map-container">
+    <svg viewBox="0 0 1000 650">
+        <!-- İRLANDA -->
+        <path class="province" id="Ireland" d="M140,180 L180,170 L200,200 L180,240 L140,230 Z" data-name="Ireland"></path>
         
-        /* Pax Harita Açılır Kutusu (Popup) Stili */
-        .leaflet-popup-content-wrapper {
+        <!-- İNGİLTERE / BİRLEŞİK KRALLIK -->
+        <path class="province" id="Scotland" d="M220,110 L250,100 L260,150 L220,160 Z" data-name="Scotland"></path>
+        <path class="province" id="Northwest England" d="M220,160 L250,150 L250,190 L220,190 Z" data-name="Northwest England"></path>
+        <path class="province" id="Northeast England" d="M250,150 L280,140 L280,180 L250,190 Z" data-name="Northeast England"></path>
+        <path class="province" id="Wales" d="M210,190 L240,190 L230,230 L200,220 Z" data-name="Wales"></path>
+        <path class="province" id="London" d="M240,210 L280,200 L280,240 L240,240 Z" data-name="London"></path>
+
+        <!-- FRANSA -->
+        <path class="province" id="Calais" d="M290,240 L330,235 L330,260 L290,260 Z" data-name="Calais"></path>
+        <path class="province" id="Normandy" d="M250,260 L290,260 L290,290 L250,290 Z" data-name="Normandy"></path>
+        <path class="province" id="Brittany" d="M200,270 L250,270 L250,300 L200,290 Z" data-name="Brittany"></path>
+        <path class="province" id="Paris" d="M290,260 L340,260 L340,300 L290,300 Z" data-name="Paris"></path>
+        <path class="province" id="Grand Est" d="M340,260 L390,250 L390,290 L340,300 Z" data-name="Grand Est"></path>
+        <path class="province" id="Occitaine" d="M270,300 L350,300 L340,360 L270,350 Z" data-name="Occitaine"></path>
+
+        <!-- ALMANYA -->
+        <path class="province" id="Hamburg / North" d="M390,190 L440,180 L440,220 L390,220 Z" data-name="Hamburg / North"></path>
+        <path class="province" id="Rhineland" d="M370,220 L410,220 L410,260 L370,260 Z" data-name="Rhineland"></path>
+        <path class="province" id="Berlin" d="M440,190 L490,190 L490,230 L440,230 Z" data-name="Berlin"></path>
+        <path class="province" id="Saxony" d="M440,230 L490,230 L480,260 L440,260 Z" data-name="Saxony"></path>
+        <path class="province" id="Bavaria" d="M410,260 L480,260 L470,310 L410,300 Z" data-name="Bavaria"></path>
+
+        <!-- BALKANLAR -->
+        <path class="province" id="Sremska Mitrovica" d="M520,310 L570,305 L570,335 L520,335 Z" data-name="Sremska Mitrovica"></path>
+        <path class="province" id="Croatia" d="M480,310 L520,310 L510,345 L480,335 Z" data-name="Croatia"></path>
+        <path class="province" id="Bulgaria" d="M570,335 L630,330 L620,370 L570,365 Z" data-name="Bulgaria"></path>
+        <path class="province" id="Thrace / Macedonia" d="M570,365 L630,360 L610,410 L560,400 Z" data-name="Thrace / Macedonia"></path>
+        <path class="province" id="Attica" d="M560,400 L610,400 L590,450 L550,440 Z" data-name="Attica"></path>
+
+        <!-- TÜRKİYE (TRAKYA & İSTANBUL) -->
+        <path class="province" id="Tekirdag" d="M630,355 L655,355 L655,375 L630,375 Z" data-name="Tekirdag"></path>
+        <path class="province" id="Istanbul" d="M655,355 L685,355 L685,375 L655,375 Z" data-name="Istanbul"></path>
+    </svg>
+</div>
+
+<script>
+    let activeColor = '#e11d48';
+
+    function setPaint(color) {
+        activeColor = color;
+    }
+
+    document.querySelectorAll('.province').forEach(prov => {
+        prov.addEventListener('click', function() {
+            this.style.fill = activeColor;
+            const provName = this.getAttribute('data-name');
+            document.getElementById('info').innerText = 'Seçilen Eyalet: ' + provName;
+        });
+    });
+</script>
+
+</body>
+</html>        .leaflet-popup-content-wrapper {
             background: #0f172a;
             color: #f8fafc;
             border: 1px solid #38bdf8;
