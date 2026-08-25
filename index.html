@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Turkish Pax Historia - Bölgesel Harita</title>
+    <title>Turkish Pax Historia - Eyalet Haritası</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; background-color: #111; color: white; font-family: sans-serif; overflow: hidden; }
@@ -35,6 +35,201 @@
         .user { background: #f39c12; color: #111; align-self: flex-end; font-weight: bold; }
         #chat-input-container { display: flex; padding: 8px; background: #111; }
         #chat-input { flex: 1; padding: 6px; border: none; border-radius: 3px; background: #222; color: white; outline: none; }
+        #chat-send { background: #f39c12; color: #111; border: none; padding: 6px 12px; margin-left: 5px; border-radius: 3px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <!-- DANIŞMAN BUTONU VE SOHBET KUTUSU -->
+    <button id="advisor-btn" onclick="toggleChat()">💡 Danışman AI</button>
+
+    <div id="advisor-chat">
+        <div id="chat-header">
+            <span>Başdanışman (AI)</span>
+            <span id="chat-close" onclick="toggleChat()">✖</span>
+        </div>
+        <div id="chat-body">
+            <div class="msg bot">Emredin hünkarım! Ben Turkish Pax Historia danışmanınızım. Eyaletler hakkında sorularınızı bekliyorum.</div>
+        </div>
+        <div id="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Danışmana soru sor..." onkeypress="handleKeyPress(event)">
+            <button id="chat-send" onclick="sendMessage()">Gönder</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var GEMINI_API_KEY = "BURAYA_API_KEY_YAZIN";
+
+        var map = L.map('map', { attributionControl: false }).setView([39.0, 35.0], 5);
+
+        // Türkçe Ülke İsimleri
+        var turkceUlkeres = {
+            "Turkey": "Türkiye",
+            "Germany": "Almanya",
+            "Russia": "Rusya",
+            "United States of America": "Amerika Birleşik Devletleri",
+            "China": "Çin",
+            "France": "Fransa",
+            "United Kingdom": "İngiltere",
+            "Italy": "İtalya",
+            "Greece": "Yunanistan",
+            "Japan": "Japonya",
+            "Iran": "İran",
+            "Iraq": "Irak",
+            "Syria": "Suriye",
+            "Egypt": "Mısır",
+            "Spain": "İspanya",
+            "Poland": "Polonya"
+        };
+
+        // Pax Historia Tarzı Büyük Eyalet / Bölge Mantığı
+        function getTurkceEyaletAdi(country, originalName) {
+            var name = (originalName || "").toLowerCase();
+
+            if (country === "Turkey" || country === "Türkiye") {
+                if (["istanbul", "tekirdağ", "kırklareli", "edirne"].some(i => name.includes(i))) return "İstanbul Eyaleti";
+                if (["bursa", "yalova", "kocaeli", "sakarya", "bilecik", "balıkesir", "çanakkale"].some(i => name.includes(i))) return "Bursa Eyaleti";
+                if (["izmir", "manisa", "aydın", "denizli", "uşak", "kütahya"].some(i => name.includes(i))) return "İzmir Eyaleti";
+                if (["muğla", "antalya", "burdur", "isparta"].some(i => name.includes(i))) return "Antalya & Muğla Bölgesi";
+                if (["van", "hakkari", "bitlis", "muş", "ağrı", "ığdır"].some(i => name.includes(i))) return "Van Bölgesi";
+                if (["trabzon", "rize", "artvin", "giresun", "kars", "ardahan", "erzurum", "gümüşhane", "bayburt"].some(i => name.includes(i))) return "Trabzon & Doğu Karadeniz";
+                if (["samsun", "ordu", "sinop", "kastamonu", "zonguldak", "bartın", "karabük", "düzce", "amasya", "tokat", "çorum"].some(i => name.includes(i))) return "Karadeniz Kıyıları";
+                if (["adana", "mersin", "hatay", "osmaniye", "gaziantep", "kahramanmaraş", "şanlıurfa", "diyarbakır", "mardin", "batman", "şırnak", "adıyaman", "kilis"].some(i => name.includes(i))) return "Adana & Çukurova";
+                
+                return "Ankara & İç Anadolu";
+            }
+
+            // Yabancı ülkelerin isimlerini Türkçeleştirme
+            if (!originalName) return "Eyalet Bölgesi";
+
+            return originalName
+                .replace(/State/g, "Eyaleti")
+                .replace(/Province/g, "Bölgesi")
+                .replace(/Region/g, "Bölgesi")
+                .replace(/Oblast/g, "Eyaleti")
+                .replace(/North/g, "Kuzey")
+                .replace(/South/g, "Güney")
+                .replace(/East/g, "Doğu")
+                .replace(/West/g, "Batı")
+                .replace(/Central/g, "Merkez");
+        }
+
+        // Ülke Renk Kodları
+        var ulkeHueMap = {
+            "Turkey": 0,                   // Kırmızı
+            "Germany": 50,                 // Sarı
+            "Russia": 210,                 // Mavi
+            "United States of America": 200, // Açık Mavi
+            "China": 350,                  // Koyu Kırmızı
+            "France": 220,                 // Lacivert
+            "United Kingdom": 340,         // Bordo
+            "Italy": 130,                  // Yeşil
+            "Greece": 170                  // Turkuaz
+        };
+
+        function getCountryHue(countryName) {
+            if (ulkeHueMap[countryName] !== undefined) return ulkeHueMap[countryName];
+            var hash = 0;
+            for (var i = 0; i < countryName.length; i++) {
+                hash = countryName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return Math.abs(hash) % 360;
+        }
+
+        function getProvinceColor(countryName, regionName) {
+            var baseHue = getCountryHue(countryName);
+            var hash = 0;
+            for (var i = 0; i < regionName.length; i++) {
+                hash = regionName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            var lightness = 38 + (Math.abs(hash) % 20); 
+            return "hsl(" + baseHue + ", 75%, " + lightness + "%)";
+        }
+
+        // Harita Verisini Çek
+        fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function(feature) {
+                        var country = feature.properties.admin || feature.properties.sovereignt;
+                        var originalProvince = feature.properties.name || "";
+                        var eyaletAdi = getTurkceEyaletAdi(country, originalProvince);
+                        var color = getProvinceColor(country, eyaletAdi);
+                        
+                        return {
+                            fillColor: color,
+                            weight: 1.2,
+                            opacity: 1,
+                            color: '#111111', // Belirgin eyalet sınır çizgisi
+                            fillOpacity: 0.82
+                        };
+                    },
+                    onEachFeature: function(feature, layer) {
+                        var country = feature.properties.admin || feature.properties.sovereignt;
+                        var originalProvince = feature.properties.name || "";
+                        
+                        var turkceUlke = turkceUlkeres[country] || country;
+                        var eyaletAdi = getTurkceEyaletAdi(country, originalProvince);
+
+                        layer.bindPopup("<b>" + turkceUlke + "</b><br>" + eyaletAdi);
+                    }
+                }).addTo(map);
+            });
+
+        /* DANIŞMAN SOHBET MANTIĞI */
+        function toggleChat() {
+            var chat = document.getElementById('advisor-chat');
+            chat.style.display = (chat.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+
+        async function sendMessage() {
+            var input = document.getElementById('chat-input');
+            var text = input.value.trim();
+            if(!text) return;
+
+            var body = document.getElementById('chat-body');
+            var userMsg = document.createElement('div');
+            userMsg.className = 'msg user';
+            userMsg.innerText = text;
+            body.appendChild(userMsg);
+            input.value = '';
+            body.scrollTop = body.scrollHeight;
+
+            var loadingMsg = document.createElement('div');
+            loadingMsg.className = 'msg bot';
+            loadingMsg.innerText = "Düşünüyor...";
+            body.appendChild(loadingMsg);
+            body.scrollTop = body.scrollHeight;
+
+            var prompt = `Sen Turkish Pax Historia strateji oyununda devlet başkanının Başdanışmanısın. 
+            Oyuncunun sorusu: "${text}".
+            Cevabını bir tarihi/stratejik devlet danışmanı rolünde kısa, resmi ve mantıklı bir şekilde Türkçe ver.`;
+
+            try {
+                var response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                var data = await response.json();
+                var aiReply = data.candidates[0].content.parts[0].text;
+                loadingMsg.innerText = aiReply;
+            } catch (err) {
+                loadingMsg.innerText = "Hata oluştu! API anahtarınızı kontrol edin.";
+            }
+
+            body.scrollTop = body.scrollHeight;
+        }
+    </script>
+</body>
+</html>        #chat-input { flex: 1; padding: 6px; border: none; border-radius: 3px; background: #222; color: white; outline: none; }
         #chat-send { background: #f39c12; color: #111; border: none; padding: 6px 12px; margin-left: 5px; border-radius: 3px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
