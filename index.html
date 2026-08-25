@@ -62,6 +62,100 @@
 <div id="header">
     <div id="info">Seçilen Eyalet: Yok</div>
     <div id="palette">
+        <!-- Orijinal Renk Paleti -->
+        <div class="color-btn" style="background:#e11d48;" onclick="setPaint('#e11d48')"></div>
+        <div class="color-btn" style="background:#2563eb;" onclick="setPaint('#2563eb')"></div>
+        <div class="color-btn" style="background:#16a34a;" onclick="setPaint('#16a34a')"></div>
+        <div class="color-btn" style="background:#d97706;" onclick="setPaint('#d97706')"></div>
+        <div class="color-btn" style="background:#9333ea;" onclick="setPaint('#9333ea')"></div>
+    </div>
+</div>
+
+<div id="map-container">
+    <svg viewBox="0 0 1000 650">
+        <!-- İRLANDA -->
+        <path class="province" id="Ireland" d="M140,180 L180,170 L200,200 L180,240 L140,230 Z" data-name="Ireland"></path>
+        
+        <!-- İNGİLTERE / BİRLEŞİK KRALLIK -->
+        <path class="province" id="Scotland" d="M220,110 L250,100 L260,150 L220,160 Z" data-name="Scotland"></path>
+        <path class="province" id="Northwest England" d="M220,160 L250,150 L250,190 L220,190 Z" data-name="Northwest England"></path>
+        <path class="province" id="Northeast England" d="M250,150 L280,140 L280,180 L250,190 Z" data-name="Northeast England"></path>
+        <path class="province" id="Wales" d="M210,190 L240,190 L230,230 L200,220 Z" data-name="Wales"></path>
+        <path class="province" id="London" d="M240,210 L280,200 L280,240 L240,240 Z" data-name="London"></path>
+
+        <!-- FRANSA -->
+        <path class="province" id="Calais" d="M290,240 L330,235 L330,260 L290,260 Z" data-name="Calais"></path>
+        <path class="province" id="Normandy" d="M250,260 L290,260 L290,290 L250,290 Z" data-name="Normandy"></path>
+        <path class="province" id="Brittany" d="M200,270 L250,270 L250,300 L200,290 Z" data-name="Brittany"></path>
+        <path class="province" id="Paris" d="M290,260 L340,260 L340,300 L290,300 Z" data-name="Paris"></path>
+        <path class="province" id="Grand Est" d="M340,260 L390,250 L390,290 L340,300 Z" data-name="Grand Est"></path>
+        <path class="province" id="Occitaine" d="M270,300 L350,300 L340,360 L270,350 Z" data-name="Occitaine"></path>
+
+        <!-- ALMANYA -->
+        <path class="province" id="Hamburg / North" d="M390,190 L440,180 L440,220 L390,220 Z" data-name="Hamburg / North"></path>
+        <path class="province" id="Rhineland" d="M370,220 L410,220 L410,260 L370,260 Z" data-name="Rhineland"></path>
+        <path class="province" id="Berlin" d="M440,190 L490,190 L490,230 L440,230 Z" data-name="Berlin"></path>
+        <path class="province" id="Saxony" d="M440,230 L490,230 L480,260 L440,260 Z" data-name="Saxony"></path>
+        <path class="province" id="Bavaria" d="M410,260 L480,260 L470,310 L410,300 Z" data-name="Bavaria"></path>
+
+        <!-- BALKANLAR -->
+        <path class="province" id="Sremska Mitrovica" d="M520,310 L570,305 L570,335 L520,335 Z" data-name="Sremska Mitrovica"></path>
+        <path class="province" id="Croatia" d="M480,310 L520,310 L510,345 L480,335 Z" data-name="Croatia"></path>
+        <path class="province" id="Bulgaria" d="M570,335 L630,330 L620,370 L570,365 Z" data-name="Bulgaria"></path>
+        <path class="province" id="Thrace / Macedonia" d="M570,365 L630,360 L610,410 L560,400 Z" data-name="Thrace / Macedonia"></path>
+        <path class="province" id="Attica" d="M560,400 L610,400 L590,450 L550,440 Z" data-name="Attica"></path>
+
+        <!-- TÜRKİYE (TRAKYA & İSTANBUL) -->
+        <path class="province" id="Tekirdag" d="M630,355 L655,355 L655,375 L630,375 Z" data-name="Tekirdag"></path>
+        <path class="province" id="Istanbul" d="M655,355 L685,355 L685,375 L655,375 Z" data-name="Istanbul"></path>
+    </svg>
+</div>
+
+<script>
+    let activeColor = '#e11d48';
+
+    function setPaint(color) {
+        activeColor = color;
+    }
+
+    document.querySelectorAll('.province').forEach(prov => {
+        prov.addEventListener('click', function() {
+            this.style.fill = activeColor;
+            const provName = this.getAttribute('data-name');
+            document.getElementById('info').innerText = 'Seçilen Eyalet: ' + provName;
+        });
+    });
+</script>
+
+</body>
+</html>            background: #0f172a;
+            padding: 10px;
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+            max-width: 1000px;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.5));
+        }
+        .province {
+            fill: #334155;
+            stroke: #0f172a;
+            stroke-width: 2;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .province:hover {
+            fill-opacity: 0.8;
+            stroke: #ffffff;
+            stroke-width: 3;
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <div id="info">Seçilen Eyalet: Yok</div>
+    <div id="palette">
         <div class="color-btn" style="background:#e11d48;" onclick="setPaint('#e11d48')"></div>
         <div class="color-btn" style="background:#2563eb;" onclick="setPaint('#2563eb')"></div>
         <div class="color-btn" style="background:#16a34a;" onclick="setPaint('#16a34a')"></div>
