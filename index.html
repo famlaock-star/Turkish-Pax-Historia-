@@ -1,40 +1,1384 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pax Historia - Simülasyon Motoru</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        * { box-sizing: border-box; }
-        html, body { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            background-color: #0c1b2a; overflow: hidden; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-        
-        #map { 
-            width: 100vw; height: 100vh; background: #0c1b2a !important; 
-            position: absolute; top: 0; left: 0; z-index: 1;
-        }
+<meta charset="UTF-8">
 
-        .leaflet-container { background: #0c1b2a !important; }
-        .leaflet-control-attribution { display: none !important; }
+<meta name="viewport"
+content="width=device-width,
+initial-scale=1,
+maximum-scale=1,
+user-scalable=no">
 
-        /* ANA MENÜ */
-        #main-menu {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(12, 27, 42, 0.98); backdrop-filter: blur(8px);
-            z-index: 99999; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; color: #fff;
-            transition: opacity 0.3s ease;
-        }
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
 
-        .menu-title {
-            font-size: 36px; font-weight: 900; letter-spacing: 2px;
-            color: #f39c12; text-shadow: 0 0 20px rgba(243, 156, 18, 0.4);
-            margin-bottom: 2px; text-transform: uppercase;
-        }
+<style>
+
+*{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#b8c7cf;
+    font-family:Arial,sans-serif;
+}
+
+/* =================================================
+   HARİTA
+================================================= */
+
+#map{
+    position:fixed;
+    inset:0;
+
+    width:100vw;
+    height:100vh;
+
+    display:block;
+
+    z-index:1;
+
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+}
+
+.country{
+    stroke:#555;
+    stroke-width:.45px;
+    stroke-linejoin:round;
+    vector-effect:non-scaling-stroke;
+}
+
+.borders{
+    fill:none;
+    stroke:#444;
+    stroke-width:.5px;
+    vector-effect:non-scaling-stroke;
+}
+
+/* =================================================
+   ALT BUTONLAR
+================================================= */
+
+#chatButton,
+#advisorButton{
+
+    position:fixed;
+
+    bottom:10px;
+
+    z-index:1000000;
+
+    pointer-events:auto;
+
+    touch-action:manipulation;
+
+    border:2px solid #555;
+    border-radius:12px;
+
+    background:#20252b;
+    color:white;
+
+    padding:11px 15px;
+
+    font-size:14px;
+    font-weight:bold;
+
+    box-shadow:0 4px 12px #0008;
+
+    cursor:pointer;
+}
+
+#chatButton{
+    left:10px;
+}
+
+#advisorButton{
+    right:10px;
+}
+
+/* =================================================
+   EKRANLAR
+================================================= */
+
+#chatScreen,
+#countryScreen,
+#countryChatScreen,
+#groupScreen,
+#groupChatScreen,
+#advisorScreen{
+
+    position:fixed;
+    inset:0;
+
+    width:100vw;
+    height:100vh;
+
+    z-index:900000;
+
+    display:none;
+
+    flex-direction:column;
+
+    background:#fff;
+    color:#222;
+
+    pointer-events:auto;
+}
+
+/* =================================================
+   ÜST BAR
+================================================= */
+
+.topBar{
+
+    min-height:58px;
+    height:58px;
+
+    display:flex;
+
+    align-items:center;
+    justify-content:space-between;
+
+    padding:7px 10px;
+
+    border-bottom:1px solid #ddd;
+
+    background:#fff;
+
+    flex-shrink:0;
+}
+
+.topBar button{
+
+    border:1px solid #bbb;
+
+    border-radius:8px;
+
+    padding:8px 10px;
+
+    background:#f3f3f3;
+
+    color:#222;
+
+    font-weight:bold;
+
+    cursor:pointer;
+
+    touch-action:manipulation;
+}
+
+.topTitle{
+
+    font-size:16px;
+    font-weight:bold;
+
+    text-align:center;
+
+    white-space:nowrap;
+}
+
+/* =================================================
+   CHAT ANA
+================================================= */
+
+.chatMain{
+
+    flex:1;
+
+    overflow-y:auto;
+
+    padding:10px;
+
+}
+
+.chatEmpty{
+
+    min-height:100%;
+
+    display:flex;
+
+    align-items:center;
+    justify-content:center;
+
+    flex-direction:column;
+
+    color:#777;
+
+}
+
+.chatBigIcon{
+    font-size:55px;
+    margin-bottom:10px;
+}
+
+/* =================================================
+   KAYITLI İLETİŞİMLER
+================================================= */
+
+.savedTitle{
+
+    font-size:14px;
+
+    font-weight:bold;
+
+    color:#555;
+
+    padding:7px 4px;
+
+}
+
+.savedList{
+
+    display:flex;
+
+    gap:8px;
+
+    overflow-x:auto;
+
+    padding:4px 0 12px 0;
+
+}
+
+.savedItem{
+
+    flex-shrink:0;
+
+    min-width:105px;
+
+    padding:12px 10px;
+
+    border:1px solid #ccc;
+
+    border-radius:10px;
+
+    background:#f5f5f5;
+
+    text-align:center;
+
+    cursor:pointer;
+
+    touch-action:manipulation;
+
+}
+
+.savedItem:active{
+    background:#ddd;
+}
+
+.savedFlag{
+    font-size:27px;
+}
+
+.savedName{
+    margin-top:4px;
+    font-size:13px;
+    font-weight:bold;
+}
+
+/* =================================================
+   CHAT ALT BUTONLARI
+================================================= */
+
+.chatBottom{
+
+    display:flex;
+
+    gap:8px;
+
+    padding:9px;
+
+    border-top:1px solid #ddd;
+
+    background:#fff;
+
+    flex-shrink:0;
+
+}
+
+.chatBottom button{
+
+    flex:1;
+
+    height:43px;
+
+    border:1px solid #bbb;
+
+    border-radius:9px;
+
+    background:#f5f5f5;
+
+    color:#222;
+
+    font-weight:bold;
+
+    cursor:pointer;
+
+    touch-action:manipulation;
+
+}
+
+/* =================================================
+   ÜLKE ARAMA
+================================================= */
+
+.searchArea{
+
+    padding:10px;
+
+    border-bottom:1px solid #ddd;
+
+}
+
+#countrySearch{
+
+    width:100%;
+
+    height:43px;
+
+    padding:0 13px;
+
+    border:1px solid #bbb;
+
+    border-radius:9px;
+
+    outline:none;
+
+    font-size:15px;
+
+}
+
+/* =================================================
+   ÜLKE LİSTESİ
+================================================= */
+
+#countryList{
+
+    flex:1;
+
+    overflow-y:auto;
+
+    padding:5px 10px;
+
+}
+
+.countryItem{
+
+    width:100%;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    padding:12px 8px;
+
+    border-bottom:1px solid #eee;
+
+    background:#fff;
+
+    cursor:pointer;
+
+    touch-action:manipulation;
+
+}
+
+.countryItem:active{
+    background:#e8e8e8;
+}
+
+.countryFlag{
+
+    width:36px;
+
+    text-align:center;
+
+    font-size:25px;
+
+}
+
+.countryName{
+    font-size:15px;
+}
+
+/* =================================================
+   ÜLKE CHAT
+================================================= */
+
+.messages{
+
+    flex:1;
+
+    overflow-y:auto;
+
+    padding:14px;
+
+}
+
+.message{
+
+    max-width:82%;
+
+    padding:10px 13px;
+
+    margin:8px 0;
+
+    border-radius:12px;
+
+    line-height:1.4;
+
+    word-break:break-word;
+
+}
+
+.userMessage{
+
+    margin-left:auto;
+
+    background:#e5edf6;
+
+}
+
+.aiMessage{
+
+    margin-right:auto;
+
+    background:#f0f0f0;
+
+}
+
+.inputArea{
+
+    display:flex;
+
+    gap:7px;
+
+    padding:9px;
+
+    border-top:1px solid #ddd;
+
+    background:#fff;
+
+}
+
+.inputArea input{
+
+    flex:1;
+
+    min-width:0;
+
+    height:42px;
+
+    padding:0 11px;
+
+    border:1px solid #bbb;
+
+    border-radius:9px;
+
+    outline:none;
+
+    font-size:15px;
+
+}
+
+.inputArea button{
+
+    border:0;
+
+    border-radius:9px;
+
+    padding:0 15px;
+
+    background:#303942;
+
+    color:#fff;
+
+    font-weight:bold;
+
+    cursor:pointer;
+
+}
+
+/* =================================================
+   GRUP
+================================================= */
+
+.groupMain{
+
+    flex:1;
+
+    overflow-y:auto;
+
+    padding:12px;
+
+}
+
+.groupCreate{
+
+    width:100%;
+
+    padding:14px;
+
+    border:1px solid #ccc;
+
+    border-radius:10px;
+
+    background:#f5f5f5;
+
+    font-weight:bold;
+
+    cursor:pointer;
+
+    margin-bottom:12px;
+
+}
+
+.groupItem{
+
+    padding:14px;
+
+    border:1px solid #ddd;
+
+    border-radius:10px;
+
+    margin-bottom:8px;
+
+    background:#fafafa;
+
+    cursor:pointer;
+
+}
+
+.groupName{
+    font-weight:bold;
+}
+
+.groupMembers{
+
+    margin-top:5px;
+
+    color:#777;
+
+    font-size:13px;
+
+}
+
+/* =================================================
+   GRUP OLUŞTURMA
+================================================= */
+
+#createGroupArea{
+
+    display:none;
+
+    padding:12px;
+
+    border-top:1px solid #ddd;
+
+    background:#fff;
+
+}
+
+#createGroupArea input{
+
+    width:100%;
+
+    height:42px;
+
+    padding:0 10px;
+
+    border:1px solid #bbb;
+
+    border-radius:9px;
+
+    margin-bottom:8px;
+
+    font-size:15px;
+
+}
+
+#createGroupArea button{
+
+    width:100%;
+
+    height:42px;
+
+    border:0;
+
+    border-radius:9px;
+
+    background:#303942;
+
+    color:#fff;
+
+    font-weight:bold;
+
+}
+
+/* =================================================
+   DANIŞMAN
+================================================= */
+
+#advisorChat{
+
+    flex:1;
+
+    overflow-y:auto;
+
+    padding:16px;
+
+}
+
+.advisorMessage{
+
+    max-width:82%;
+
+    padding:11px 13px;
+
+    margin:9px 0;
+
+    border-radius:12px;
+
+    line-height:1.4;
+
+    white-space:pre-wrap;
+
+    word-break:break-word;
+
+}
+
+.advisorUser{
+
+    margin-left:auto;
+
+    background:#e5edf6;
+
+}
+
+.advisorAI{
+
+    margin-right:auto;
+
+    background:#f0f0f0;
+
+}
+
+#advisorQuestions{
+
+    display:flex;
+
+    gap:8px;
+
+    padding:9px;
+
+    overflow-x:auto;
+
+    border-top:1px solid #ddd;
+
+}
+
+.advisorQuestion{
+
+    flex-shrink:0;
+
+    border:1px solid #bbb;
+
+    border-radius:9px;
+
+    padding:10px 12px;
+
+    background:#f5f5f5;
+
+    color:#222;
+
+    cursor:pointer;
+
+}
+
+#advisorInputBox{
+
+    display:flex;
+
+    gap:8px;
+
+    padding:10px;
+
+    border-top:1px solid #ddd;
+
+}
+
+#advisorInput{
+
+    flex:1;
+
+    min-width:0;
+
+    padding:11px;
+
+    border:1px solid #bbb;
+
+    border-radius:9px;
+
+    outline:none;
+
+    font-size:15px;
+
+}
+
+#advisorSend{
+
+    border:0;
+
+    border-radius:9px;
+
+    padding:0 16px;
+
+    background:#303942;
+
+    color:white;
+
+    font-weight:bold;
+
+}
+
+/* =================================================
+   MOBİL
+================================================= */
+
+@media(max-width:600px){
+
+    #chatButton,
+    #advisorButton{
+
+        bottom:8px;
+
+        padding:10px 12px;
+
+        font-size:13px;
+
+    }
+
+    #chatButton{
+        left:8px;
+    }
+
+    #advisorButton{
+        right:8px;
+    }
+
+    .topTitle{
+        font-size:14px;
+    }
+
+    .topBar button{
+        font-size:10px;
+        padding:7px;
+    }
+
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- =================================================
+     HARİTA
+================================================= -->
+
+<svg id="map"></svg>
+
+<!-- =================================================
+     ANA BUTONLAR
+================================================= -->
+
+<button id="chatButton">
+    💬 Chat
+</button>
+
+<button id="advisorButton">
+    🧠 Danışman
+</button>
+
+<!-- =================================================
+     CHAT
+================================================= -->
+
+<div id="chatScreen">
+
+    <div class="topBar">
+
+        <button id="chatClose">
+            ← Çık
+        </button>
+
+        <div class="topTitle">
+            💬 Chat
+        </div>
+
+        <div style="width:55px"></div>
+
+    </div>
+
+    <div class="chatMain">
+
+        <div class="savedTitle">
+            📌 İletişimler
+        </div>
+
+        <div
+            id="savedList"
+            class="savedList">
+        </div>
+
+        <div class="chatEmpty">
+
+            <div class="chatBigIcon">
+                💬
+            </div>
+
+            <div>
+                Ülkelerle iletişim kur
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="chatBottom">
+
+        <button id="countryChatButton">
+            🌍 Ülkeyle İletişim
+        </button>
+
+        <button id="groupButton">
+            👥 Grup
+        </button>
+
+    </div>
+
+</div>
+
+<!-- =================================================
+     ÜLKE SEÇ
+================================================= -->
+
+<div id="countryScreen">
+
+    <div class="topBar">
+
+        <button id="countryBack">
+            ← Geri
+        </button>
+
+        <div class="topTitle">
+            🌍 Ülke Seç
+        </div>
+
+        <div style="width:55px"></div>
+
+    </div>
+
+    <div class="searchArea">
+
+        <input
+            id="countrySearch"
+            type="text"
+            placeholder="🔎 Ülke ara..."
+            autocomplete="off">
+
+    </div>
+
+    <div id="countryList"></div>
+
+</div>
+
+<!-- =================================================
+     ÜLKE CHAT
+================================================= -->
+
+<div id="countryChatScreen">
+
+    <div class="topBar">
+
+        <button id="countryChatBack">
+            ← Geri
+        </button>
+
+        <div
+            id="selectedCountryTitle"
+            class="topTitle">
+            🌍 Ülke
+        </div>
+
+        <div style="width:55px"></div>
+
+    </div>
+
+    <div
+        id="countryMessages"
+        class="messages">
+    </div>
+
+    <div class="inputArea">
+
+        <input
+            id="countryMessageInput"
+            type="text"
+            placeholder="Mesaj yaz..."
+            autocomplete="off">
+
+        <button id="countrySend">
+            Gönder
+        </button>
+
+    </div>
+
+</div>
+
+<!-- =================================================
+     GRUPLAR
+================================================= -->
+
+<div id="groupScreen">
+
+    <div class="topBar">
+
+        <button id="groupBack">
+            ← Geri
+        </button>
+
+        <div class="topTitle">
+            👥 Gruplar
+        </div>
+
+        <div style="width:55px"></div>
+
+    </div>
+
+    <div
+        id="groupMain"
+        class="groupMain">
+    </div>
+
+    <div id="createGroupArea">
+
+        <input
+            id="groupNameInput"
+            type="text"
+            placeholder="Grup adı...">
+
+        <button id="createGroupButton">
+            + Grubu Oluştur
+        </button>
+
+    </div>
+
+</div>
+
+<!-- =================================================
+     GRUP CHAT
+================================================= -->
+
+<div id="groupChatScreen">
+
+    <div class="topBar">
+
+        <button id="groupChatBack">
+            ← Geri
+        </button>
+
+        <div
+            id="selectedGroupTitle"
+            class="topTitle">
+            👥 Grup
+        </div>
+
+        <div style="width:55px"></div>
+
+    </div>
+
+    <div
+        id="groupMessages"
+        class="messages">
+    </div>
+
+    <div class="inputArea">
+
+        <input
+            id="groupMessageInput"
+            type="text"
+            placeholder="Gruba mesaj yaz..."
+            autocomplete="off">
+
+        <button id="groupSend">
+            Gönder
+        </button>
+
+    </div>
+
+</div>
+
+<!-- =================================================
+     DANIŞMAN
+================================================= -->
+
+<div id="advisorScreen">
+
+    <div class="topBar">
+
+        <button id="advisorExit">
+            ← Çık
+        </button>
+
+        <div id="advisorTitle"
+             class="topTitle">
+            🧠 Pax Historia Danışmanı
+        </div>
+
+        <button id="advisorClear">
+            🗑️ Temizle
+        </button>
+
+    </div>
+
+    <div id="advisorChat"></div>
+
+    <div id="advisorQuestions">
+
+        <button class="advisorQuestion">
+            🌍 Jeopolitik denge ne durumda?
+        </button>
+
+        <button class="advisorQuestion">
+            💰 Ekonomim ne durumda?
+        </button>
+
+        <button class="advisorQuestion">
+            🤝 Komşularım ile ilişkim ne durumda?
+        </button>
+
+    </div>
+
+    <div id="advisorInputBox">
+
+        <input
+            id="advisorInput"
+            type="text"
+            placeholder="Danışmana yaz..."
+            autocomplete="off">
+
+        <button id="advisorSend">
+            Gönder
+        </button>
+
+    </div>
+
+</div>
+
+<script>
+
+/* =================================================
+   HARİTA
+================================================= */
+
+const svg = d3.select("#map");
+
+let mapLayer = null;
+
+let mapReady = false;
+
+let currentZoom = null;
+
+
+/* =================================================
+   HARİTA YÜKLE
+================================================= */
+
+function loadMap(){
+
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    svg.attr(
+        "viewBox",
+        `0 0 ${W} ${H}`
+    );
+
+
+    mapLayer = svg.append("g");
+
+
+    const projection =
+        d3.geoNaturalEarth1()
+        .scale(W * 0.34)
+        .translate([
+            W / 2,
+            H / 2
+        ]);
+
+
+    const path =
+        d3.geoPath()
+        .projection(projection);
+
+
+    const palette = [
+
+        "#b94a48",
+        "#c96a4b",
+        "#d6a84f",
+        "#8d9b55",
+        "#668f65",
+        "#4f8291",
+        "#6680a8",
+        "#766c9b",
+        "#a06b91",
+        "#9a825e",
+        "#737b72",
+        "#c27b72",
+        "#879c72",
+        "#b39b63",
+        "#6f8d86"
+
+    ];
+
+
+    const countryColors = {
+
+        "792":"#c91f2b",
+
+        "276":"#777777",
+        "250":"#526f9e",
+        "380":"#668b63",
+        "724":"#c89b45",
+        "826":"#a94d4d",
+        "616":"#b56a4e",
+        "804":"#718c5c",
+        "643":"#9e5552",
+
+        "300":"#7c8e61",
+        "100":"#a66a58",
+        "642":"#7b8e68",
+        "688":"#8f7560",
+
+        "156":"#b94443",
+        "392":"#a85b51",
+        "410":"#6686a1",
+        "356":"#c17c58",
+        "364":"#8c655b",
+        "682":"#a57b54",
+
+        "840":"#5d789e",
+        "124":"#9b6b57",
+        "484":"#7f9967",
+        "076":"#6c8e70",
+        "032":"#8b765d",
+
+        "818":"#b58b51",
+        "710":"#718d68",
+        "504":"#a97955"
+
+    };
+
+
+    d3.json(
+        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json"
+    )
+
+    .then(world => {
+
+        const countries =
+            topojson.feature(
+                world,
+                world.objects.countries
+            ).features;
+
+
+        mapLayer
+        .selectAll(".country")
+        .data(countries)
+        .join("path")
+
+        .attr(
+            "class",
+            "country"
+        )
+
+        .attr(
+            "d",
+            path
+        )
+
+        .attr(
+            "fill",
+            (d,i) =>
+                countryColors[
+                    String(d.id)
+                ]
+                ||
+                palette[
+                    i % palette.length
+                ]
+        );
+
+
+        const borders =
+            topojson.mesh(
+                world,
+                world.objects.countries,
+                (a,b) => a !== b
+            );
+
+
+        mapLayer
+        .append("path")
+
+        .datum(borders)
+
+        .attr(
+            "class",
+            "borders"
+        )
+
+        .attr(
+            "d",
+            path
+        );
+
+
+        /* =========================
+           ZOOM
+        ========================= */
+
+        const bounds =
+            path.bounds({
+                type:"FeatureCollection",
+                features:countries
+            });
+
+
+        const left =
+            bounds[0][0];
+
+        const top =
+            bounds[0][1];
+
+        const right =
+            bounds[1][0];
+
+        const bottom =
+            bounds[1][1];
+
+
+        const mapWidth =
+            right - left;
+
+        const mapHeight =
+            bottom - top;
+
+
+        currentZoom =
+            d3.zoom()
+
+            .scaleExtent([
+                1,
+                12
+            ])
+
+            .filter(event => {
+
+                /*
+                 Butonlara dokunulduğunda
+                 zoom çalışmasın.
+                */
+
+                if(
+                    event.target.closest &&
+                    event.target.closest("button")
+                ){
+                    return false;
+                }
+
+                return true;
+
+            })
+
+            .on(
+                "zoom",
+                event => {
+
+                    let k =
+                        event.transform.k;
+
+                    let x =
+                        event.transform.x;
+
+                    let y =
+                        event.transform.y;
+
+
+                    const scaledWidth =
+                        mapWidth * k;
+
+                    const scaledHeight =
+                        mapHeight * k;
+
+
+                    /* YATAY */
+
+                    if(
+                        scaledWidth <= W
+                    ){
+
+                        x =
+                            (W - scaledWidth) / 2
+                            - left * k;
+
+                    }
+                    else{
+
+                        const minX =
+                            W - right * k;
+
+                        const maxX =
+                            -left * k;
+
+                        x =
+                            Math.max(
+                                minX,
+                                Math.min(
+                                    maxX,
+                                    x
+                                )
+                            );
+
+                    }
+
+
+                    /* DİKEY */
+
+                    if(
+                        scaledHeight <= H
+                    ){
+
+                        y =
+                            (H - scaledHeight) / 2
+                            - top * k;
+
+                    }
+                    else{
+
+                        const minY =
+                            H -         }
 
         .menu-subtitle { font-size: 13px; color: #7f8c8d; margin-bottom: 20px; }
 
