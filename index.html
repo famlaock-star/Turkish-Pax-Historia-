@@ -2,29 +2,23 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-
 <meta name="viewport"
-content="width=device-width,initial-scale=1,
-maximum-scale=1,user-scalable=no">
+content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 
-<title>Turkish Pax Historia</title>
+<title>Pax Historia AI</title>
 
-<!-- LEAFLET -->
-<link rel="stylesheet"
-href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
-<script
-src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-</script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
 
 <style>
-
 *{
     box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
 }
 
 html,body{
     margin:0;
+    padding:0;
     width:100%;
     height:100%;
     overflow:hidden;
@@ -32,41 +26,51 @@ html,body{
     background:#b8c7cf;
 }
 
-/* ================= HARİTA ================= */
+/* ================= MAP ================= */
 
 #map{
     position:fixed;
     inset:0;
-    width:100%;
-    height:100%;
+    width:100vw;
+    height:100vh;
     z-index:1;
+    touch-action:none;
 }
 
-.leaflet-control-attribution{
-    font-size:8px;
+.country{
+    stroke:#555;
+    stroke-width:.45px;
+    vector-effect:non-scaling-stroke;
 }
 
-/* ================= ALT BUTONLAR ================= */
+.borders{
+    fill:none;
+    stroke:#444;
+    stroke-width:.55px;
+    vector-effect:non-scaling-stroke;
+}
 
-.mainButton{
+/* ================= MAIN BUTTONS ================= */
+
+.mainBtn{
     position:fixed;
-    bottom:12px;
-
-    z-index:5000;
+    bottom:10px;
+    z-index:10000;
 
     border:2px solid #555;
     border-radius:12px;
 
-    padding:11px 15px;
-
     background:#20252b;
     color:white;
+
+    padding:11px 14px;
 
     font-size:14px;
     font-weight:bold;
 
     box-shadow:0 4px 12px #0008;
 
+    cursor:pointer;
     touch-action:manipulation;
 }
 
@@ -78,22 +82,25 @@ html,body{
     right:10px;
 }
 
-/* ================= EKRANLAR ================= */
+/* ================= SCREENS ================= */
 
 .screen{
     position:fixed;
     inset:0;
 
-    z-index:10000;
+    width:100vw;
+    height:100vh;
+
+    z-index:50000;
 
     display:none;
     flex-direction:column;
 
-    background:white;
+    background:#fff;
     color:#222;
 }
 
-/* ================= ÜST BAR ================= */
+/* ================= TOP ================= */
 
 .top{
     height:58px;
@@ -106,6 +113,7 @@ html,body{
     padding:7px 10px;
 
     border-bottom:1px solid #ddd;
+    background:white;
 }
 
 .top button{
@@ -117,18 +125,70 @@ html,body{
     background:#f3f3f3;
     color:#222;
 
+    font-size:14px;
+
+    cursor:pointer;
     touch-action:manipulation;
 }
 
 .title{
     font-size:16px;
     font-weight:bold;
+    text-align:center;
 }
 
-/* ================= CHAT ================= */
+/* ================= CHAT HOME ================= */
 
-.chatCenter{
+.chatMain{
     flex:1;
+    overflow-y:auto;
+    padding:12px;
+}
+
+.savedTitle{
+    font-weight:bold;
+    margin:5px 0 10px;
+}
+
+.savedChat{
+    width:100%;
+
+    display:block;
+
+    padding:13px;
+    margin-bottom:8px;
+
+    border:1px solid #ddd;
+    border-radius:10px;
+
+    background:#f7f7f7;
+
+    text-align:left;
+    font-weight:bold;
+    font-size:14px;
+
+    cursor:pointer;
+}
+
+.savedChat:active{
+    background:#e7e7e7;
+}
+
+.savedPreview{
+    display:block;
+    margin-top:5px;
+
+    font-size:12px;
+    font-weight:normal;
+    color:#777;
+
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+}
+
+.chatEmpty{
+    height:100%;
 
     display:flex;
     align-items:center;
@@ -143,64 +203,9 @@ html,body{
     margin-bottom:10px;
 }
 
-.chatBottom{
-    padding:9px;
-    border-top:1px solid #ddd;
-}
+/* ================= COUNTRY SELECT ================= */
 
-#countryChatButton,
-#createGroupButton{
-    width:100%;
-    height:43px;
-
-    margin-bottom:7px;
-
-    border:1px solid #bbb;
-    border-radius:9px;
-
-    background:#f5f5f5;
-    font-weight:bold;
-}
-
-/* ================= KAYITLI ÜLKELER ================= */
-
-#savedContacts{
-    max-height:180px;
-    overflow-y:auto;
-
-    border-bottom:1px solid #ddd;
-}
-
-.contact{
-    display:flex;
-    align-items:center;
-
-    padding:11px;
-
-    border-bottom:1px solid #eee;
-
-    cursor:pointer;
-    touch-action:manipulation;
-}
-
-.contactFlag{
-    font-size:25px;
-    width:42px;
-}
-
-.contactName{
-    font-weight:bold;
-}
-
-.contactSub{
-    font-size:12px;
-    color:#888;
-    margin-top:3px;
-}
-
-/* ================= ÜLKE SEÇ ================= */
-
-.searchArea{
+.countrySearch{
     padding:10px;
     border-bottom:1px solid #ddd;
 }
@@ -212,14 +217,18 @@ html,body{
     border:1px solid #bbb;
     border-radius:9px;
 
-    padding:0 12px;
+    padding:0 13px;
+
+    outline:none;
 
     font-size:15px;
 }
 
 #countryList{
     flex:1;
+
     overflow-y:auto;
+
     padding:5px 10px;
 }
 
@@ -228,6 +237,7 @@ html,body{
 
     display:flex;
     align-items:center;
+
     gap:12px;
 
     padding:12px 8px;
@@ -238,23 +248,82 @@ html,body{
     background:white;
 
     text-align:left;
-
     font-size:15px;
 
-    touch-action:manipulation;
+    cursor:pointer;
 }
 
-.countryFlag{
-    font-size:25px;
+.countryItem.selected{
+    background:#b9f0c0;
+    border:2px solid #35a54a;
+}
+
+.countryItem:active{
+    background:#dff5e2;
+}
+
+.flag{
     width:35px;
+    font-size:25px;
+    text-align:center;
 }
 
-/* ================= ÜLKE CHAT ================= */
+/* ================= SELECTED ================= */
+
+.selectedArea{
+    padding:10px;
+
+    border-top:1px solid #ddd;
+
+    background:#fafafa;
+}
+
+.selectedCountries{
+    min-height:35px;
+
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+
+    margin-bottom:8px;
+}
+
+.tag{
+    background:#d8f1dc;
+
+    border:1px solid #59a966;
+    border-radius:8px;
+
+    padding:6px 9px;
+
+    font-size:13px;
+}
+
+#startChat{
+    width:100%;
+    height:43px;
+
+    border:0;
+    border-radius:9px;
+
+    background:#303942;
+    color:white;
+
+    font-weight:bold;
+
+    cursor:pointer;
+}
+
+/* ================= COUNTRY CHAT ================= */
 
 .messages{
     flex:1;
+
     overflow-y:auto;
+
     padding:14px;
+
+    scroll-behavior:smooth;
 }
 
 .message{
@@ -267,17 +336,29 @@ html,body{
 
     line-height:1.4;
 
+    white-space:pre-wrap;
     word-break:break-word;
 }
 
-.userMessage{
+.user{
     margin-left:auto;
     background:#e5edf6;
 }
 
-.aiMessage{
+.ai{
     margin-right:auto;
     background:#f0f0f0;
+}
+
+.aiName{
+    display:block;
+
+    margin-bottom:4px;
+
+    font-size:12px;
+    font-weight:bold;
+
+    color:#555;
 }
 
 .inputArea{
@@ -287,9 +368,11 @@ html,body{
     padding:9px;
 
     border-top:1px solid #ddd;
+
+    background:white;
 }
 
-.inputArea input{
+#messageInput{
     flex:1;
     min-width:0;
 
@@ -300,10 +383,12 @@ html,body{
 
     padding:0 11px;
 
+    outline:none;
+
     font-size:15px;
 }
 
-.inputArea button{
+#sendMessage{
     border:0;
     border-radius:9px;
 
@@ -313,54 +398,35 @@ html,body{
     color:white;
 
     font-weight:bold;
+
+    cursor:pointer;
 }
 
-/* ================= GRUP ================= */
+.typing{
+    opacity:.7;
+    font-style:italic;
+}
 
-#groupList{
+/* ================= ADVISOR ================= */
+
+.advisorMessages{
     flex:1;
+
     overflow-y:auto;
-    padding:10px;
-}
 
-.groupItem{
-    padding:14px;
-
-    margin-bottom:8px;
-
-    border:1px solid #ddd;
-    border-radius:10px;
-
-    background:#fafafa;
-
-    font-weight:bold;
-}
-
-.groupMembers{
-    font-size:12px;
-    color:#777;
-    margin-top:5px;
-}
-
-/* ================= DANIŞMAN ================= */
-
-#advisorMessages{
-    flex:1;
-    overflow-y:auto;
-    padding:14px;
+    padding:16px;
 }
 
 .advisorMessage{
     max-width:82%;
 
     padding:11px 13px;
-    margin:8px 0;
+    margin:9px 0;
 
     border-radius:12px;
 
-    line-height:1.4;
-
     white-space:pre-wrap;
+    word-break:break-word;
 }
 
 .advisorUser{
@@ -373,37 +439,51 @@ html,body{
     background:#f0f0f0;
 }
 
-.advisorQuestions{
+.advisorInputBox{
     display:flex;
-    gap:7px;
+    gap:8px;
 
-    padding:8px;
-
-    overflow-x:auto;
+    padding:10px;
 
     border-top:1px solid #ddd;
 }
 
-.advisorQuestion{
-    flex-shrink:0;
+#advisorInput{
+    flex:1;
 
-    padding:9px 11px;
+    padding:11px;
 
     border:1px solid #bbb;
     border-radius:9px;
 
-    background:#f5f5f5;
+    outline:none;
+
+    font-size:15px;
 }
 
-button{
+#advisorSend{
+    border:0;
+    border-radius:9px;
+
+    padding:0 15px;
+
+    background:#303942;
+    color:white;
+
+    font-weight:bold;
+
     cursor:pointer;
 }
 
-/* ================= MOBİL ================= */
+#advisorClear{
+    color:#a00000;
+}
+
+/* ================= MOBILE ================= */
 
 @media(max-width:600px){
 
-    .mainButton{
+    .mainBtn{
         bottom:8px;
         padding:10px 12px;
         font-size:13px;
@@ -422,33 +502,29 @@ button{
     }
 
     .top button{
-        font-size:10px;
+        font-size:11px;
         padding:7px;
     }
-
 }
-
 </style>
 </head>
 
 <body>
 
-<!-- HARİTA -->
+<!-- ================= MAP ================= -->
 
-<div id="map"></div>
+<svg id="map"></svg>
 
-<!-- ANA BUTONLAR -->
-
-<button id="chatButton" class="mainButton">
-    💬 Chat
+<button id="chatButton" class="mainBtn">
+💬 Chat
 </button>
 
-<button id="advisorButton" class="mainButton">
-    🧠 Danışman
+<button id="advisorButton" class="mainBtn">
+🧠 Danışman
 </button>
 
 
-<!-- ================= CHAT ================= -->
+<!-- ================= CHAT HOME ================= -->
 
 <div id="chatScreen" class="screen">
 
@@ -462,33 +538,30 @@ button{
             💬 Chat
         </div>
 
-        <div style="width:45px"></div>
+        <div style="width:55px"></div>
 
     </div>
 
-    <!-- DAHA ÖNCE İLETİŞİM KURULANLAR -->
+    <div id="chatMain" class="chatMain"></div>
 
-    <div id="savedContacts"></div>
+    <div style="
+        padding:8px;
+        border-top:1px solid #ddd;
+    ">
 
-    <div class="chatCenter">
+        <button id="newChat"
+        style="
+        width:100%;
+        height:42px;
+        border:1px solid #bbb;
+        border-radius:8px;
+        background:#f5f5f5;
+        font-weight:bold;
+        cursor:pointer;
+        ">
 
-        <div>
-            <div class="bigIcon">💬</div>
-            <div>
-                Ülkelerle iletişim kur
-            </div>
-        </div>
+            🌍 Ülkelerle yeni sohbet oluştur
 
-    </div>
-
-    <div class="chatBottom">
-
-        <button id="countryChatButton">
-            🌍 Bir ülkeyle iletişime geç
-        </button>
-
-        <button id="createGroupButton">
-            👥 Grup oluştur
         </button>
 
     </div>
@@ -496,7 +569,7 @@ button{
 </div>
 
 
-<!-- ================= ÜLKE SEÇ ================= -->
+<!-- ================= COUNTRY SELECT ================= -->
 
 <div id="countryScreen" class="screen">
 
@@ -510,25 +583,39 @@ button{
             🌍 Ülke Seç
         </div>
 
-        <div style="width:45px"></div>
+        <div style="width:55px"></div>
 
     </div>
 
-    <div class="searchArea">
+    <div class="countrySearch">
 
         <input
             id="countrySearch"
             placeholder="🔎 Ülke ara..."
-            autocomplete="off">
+            autocomplete="off"
+        >
 
     </div>
 
     <div id="countryList"></div>
 
+    <div class="selectedArea">
+
+        <div
+            id="selectedCountries"
+            class="selectedCountries">
+        </div>
+
+        <button id="startChat">
+            ▶️ Sohbeti Başlat
+        </button>
+
+    </div>
+
 </div>
 
 
-<!-- ================= ÜLKE CHAT ================= -->
+<!-- ================= COUNTRY CHAT ================= -->
 
 <div id="countryChatScreen" class="screen">
 
@@ -538,27 +625,30 @@ button{
             ← Geri
         </button>
 
-        <div id="selectedCountryTitle"
-             class="title">
-            🌍 Ülke
+        <div id="chatTitle" class="title">
+            🌍 Sohbet
         </div>
 
-        <div style="width:45px"></div>
+        <button id="clearChat">
+            🗑️
+        </button>
 
     </div>
 
-    <div id="countryMessages"
-         class="messages">
+    <div
+        id="messages"
+        class="messages">
     </div>
 
     <div class="inputArea">
 
         <input
-            id="countryMessageInput"
+            id="messageInput"
             placeholder="Mesaj yaz..."
-            autocomplete="off">
+            autocomplete="off"
+        >
 
-        <button id="countrySend">
+        <button id="sendMessage">
             Gönder
         </button>
 
@@ -567,36 +657,13 @@ button{
 </div>
 
 
-<!-- ================= GRUP ================= -->
-
-<div id="groupScreen" class="screen">
-
-    <div class="top">
-
-        <button id="groupBack">
-            ← Geri
-        </button>
-
-        <div class="title">
-            👥 Gruplar
-        </div>
-
-        <div style="width:45px"></div>
-
-    </div>
-
-    <div id="groupList"></div>
-
-</div>
-
-
-<!-- ================= DANIŞMAN ================= -->
+<!-- ================= ADVISOR ================= -->
 
 <div id="advisorScreen" class="screen">
 
     <div class="top">
 
-        <button id="advisorClose">
+        <button id="advisorExit">
             ← Çık
         </button>
 
@@ -605,39 +672,23 @@ button{
         </div>
 
         <button id="advisorClear">
-            Temizle
+            🗑️
         </button>
 
     </div>
 
-    <div id="advisorMessages"></div>
-
-    <div class="advisorQuestions">
-
-        <button class="advisorQuestion">
-            🌍 Jeopolitik durum
-        </button>
-
-        <button class="advisorQuestion">
-            💰 Ekonomi
-        </button>
-
-        <button class="advisorQuestion">
-            ⚔️ Savaş
-        </button>
-
-        <button class="advisorQuestion">
-            🪖 Ordu
-        </button>
-
+    <div
+        id="advisorMessages"
+        class="advisorMessages">
     </div>
 
-    <div class="inputArea">
+    <div class="advisorInputBox">
 
         <input
             id="advisorInput"
             placeholder="Danışmana yaz..."
-            autocomplete="off">
+            autocomplete="off"
+        >
 
         <button id="advisorSend">
             Gönder
@@ -651,54 +702,378 @@ button{
 <script>
 
 /* =====================================================
-   HARİTA
+   GEMINI
 ===================================================== */
 
-const map =
-    L.map("map",{
+/*
+   BURAYA KENDİ YENİ GEMINI API KEY'İNİ YAZ.
 
-        zoomControl:false,
+   Örnek:
+   const GEMINI_API_KEY = "AIza...";
+*/
 
-        minZoom:2,
-        maxZoom:7,
-
-        worldCopyJump:false,
-
-        maxBounds:[
-            [-85,-180],
-            [85,180]
-        ],
-
-        maxBoundsViscosity:1.0
-
-    });
+const GEMINI_API_KEY = "BURAYA_KEY";
 
 
-L.control.zoom({
-    position:"topright"
-}).addTo(map);
+async function callGeminiAPI(prompt){
 
+    if(
+        !GEMINI_API_KEY ||
+        GEMINI_API_KEY === "BURAYA_KEY"
+    ){
 
-map.setView(
-    [30,20],
-    2
-);
+        throw new Error(
+            "Gemini API anahtarı girilmemiş."
+        );
 
-
-/* HARİTA */
-
-L.tileLayer(
-    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    {
-        maxZoom:7,
-        attribution:"© OpenStreetMap"
     }
-).addTo(map);
+
+    const url =
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
+
+    const response =
+        await fetch(url,{
+
+            method:"POST",
+
+            headers:{
+                "Content-Type":"application/json",
+                "x-goog-api-key":GEMINI_API_KEY
+            },
+
+            body:JSON.stringify({
+
+                contents:[
+
+                    {
+                        parts:[
+                            {
+                                text:prompt
+                            }
+                        ]
+                    }
+
+                ]
+
+            })
+
+        });
+
+
+    const data =
+        await response.json();
+
+
+    if(!response.ok){
+
+        console.error(
+            "Gemini API:",
+            data
+        );
+
+        throw new Error(
+            data?.error?.message ||
+            "Gemini API hatası."
+        );
+
+    }
+
+
+    const text =
+        data
+        ?.candidates?.[0]
+        ?.content?.parts?.[0]
+        ?.text;
+
+
+    if(!text){
+
+        throw new Error(
+            "Gemini boş cevap döndürdü."
+        );
+
+    }
+
+
+    return text.trim();
+
+}
+
+
+/* =====================================================
+   ÜLKELER
+===================================================== */
+
+const countries = [
+
+["🇦🇫","Afganistan"],
+["🇦🇱","Arnavutluk"],
+["🇩🇿","Cezayir"],
+["🇦🇩","Andorra"],
+["🇦🇴","Angola"],
+["🇦🇬","Antigua ve Barbuda"],
+["🇦🇷","Arjantin"],
+["🇦🇲","Ermenistan"],
+["🇦🇺","Avustralya"],
+["🇦🇹","Avusturya"],
+["🇦🇿","Azerbaycan"],
+
+["🇧🇸","Bahamalar"],
+["🇧🇭","Bahreyn"],
+["🇧🇩","Bangladeş"],
+["🇧🇧","Barbados"],
+["🇧🇾","Belarus"],
+["🇧🇪","Belçika"],
+["🇧🇿","Belize"],
+["🇧🇯","Benin"],
+["🇧🇹","Bhutan"],
+["🇧🇴","Bolivya"],
+["🇧🇦","Bosna-Hersek"],
+["🇧🇼","Botsvana"],
+["🇧🇷","Brezilya"],
+["🇧🇳","Brunei"],
+["🇧🇬","Bulgaristan"],
+["🇧🇫","Burkina Faso"],
+["🇧🇮","Burundi"],
+
+["🇰🇭","Kamboçya"],
+["🇨🇲","Kamerun"],
+["🇨🇦","Kanada"],
+["🇨🇫","Orta Afrika Cumhuriyeti"],
+["🇹🇩","Çad"],
+["🇨🇱","Şili"],
+["🇨🇳","Çin"],
+["🇨🇴","Kolombiya"],
+["🇨🇬","Kongo Cumhuriyeti"],
+["🇨🇩","Kongo Demokratik Cumhuriyeti"],
+["🇨🇷","Kosta Rika"],
+["🇨🇮","Fildişi Sahili"],
+["🇭🇷","Hırvatistan"],
+["🇨🇺","Küba"],
+["🇨🇾","Kıbrıs"],
+["🇨🇿","Çekya"],
+
+["🇩🇰","Danimarka"],
+["🇩🇯","Cibuti"],
+["🇩🇲","Dominika"],
+["🇩🇴","Dominik Cumhuriyeti"],
+
+["🇪🇨","Ekvador"],
+["🇪🇬","Mısır"],
+["🇸🇻","El Salvador"],
+["🇬🇶","Ekvator Ginesi"],
+["🇪🇷","Eritre"],
+["🇪🇪","Estonya"],
+["🇸🇿","Esvatini"],
+["🇪🇹","Etiyopya"],
+
+["🇫🇯","Fiji"],
+["🇫🇮","Finlandiya"],
+["🇫🇷","Fransa"],
+
+["🇬🇦","Gabon"],
+["🇬🇲","Gambiya"],
+["🇬🇪","Gürcistan"],
+["🇩🇪","Almanya"],
+["🇬🇭","Gana"],
+["🇬🇷","Yunanistan"],
+["🇬🇩","Grenada"],
+["🇬🇹","Guatemala"],
+["🇬🇳","Gine"],
+["🇬🇼","Gine-Bissau"],
+["🇬🇾","Guyana"],
+
+["🇭🇹","Haiti"],
+["🇭🇳","Honduras"],
+["🇭🇺","Macaristan"],
+
+["🇮🇸","İzlanda"],
+["🇮🇳","Hindistan"],
+["🇮🇩","Endonezya"],
+["🇮🇷","İran"],
+["🇮🇶","Irak"],
+["🇮🇪","İrlanda"],
+["🇮🇱","İsrail"],
+["🇮🇹","İtalya"],
+
+["🇯🇵","Japonya"],
+["🇯🇴","Ürdün"],
+
+["🇰🇿","Kazakistan"],
+["🇰🇪","Kenya"],
+["🇰🇼","Kuveyt"],
+["🇰🇬","Kırgızistan"],
+
+["🇱🇦","Laos"],
+["🇱🇻","Letonya"],
+["🇱🇧","Lübnan"],
+["🇱🇸","Lesotho"],
+["🇱🇷","Liberya"],
+["🇱🇾","Libya"],
+["🇱🇹","Litvanya"],
+["🇱🇺","Lüksemburg"],
+
+["🇲🇬","Madagaskar"],
+["🇲🇼","Malavi"],
+["🇲🇾","Malezya"],
+["🇲🇻","Maldivler"],
+["🇲🇱","Mali"],
+["🇲🇹","Malta"],
+["🇲🇷","Moritanya"],
+["🇲🇺","Mauritius"],
+["🇲🇽","Meksika"],
+["🇲🇩","Moldova"],
+["🇲🇨","Monako"],
+["🇲🇳","Moğolistan"],
+["🇲🇪","Karadağ"],
+["🇲🇦","Fas"],
+["🇲🇿","Mozambik"],
+
+["🇳🇦","Namibya"],
+["🇳🇵","Nepal"],
+["🇳🇱","Hollanda"],
+["🇳🇿","Yeni Zelanda"],
+["🇳🇮","Nikaragua"],
+["🇳🇪","Nijer"],
+["🇳🇬","Nijerya"],
+["🇰🇵","Kuzey Kore"],
+["🇲🇰","Kuzey Makedonya"],
+["🇳🇴","Norveç"],
+
+["🇴🇲","Umman"],
+
+["🇵🇰","Pakistan"],
+["🇵🇦","Panama"],
+["🇵🇬","Papua Yeni Gine"],
+["🇵🇾","Paraguay"],
+["🇵🇪","Peru"],
+["🇵🇭","Filipinler"],
+["🇵🇱","Polonya"],
+["🇵🇹","Portekiz"],
+
+["🇶🇦","Katar"],
+
+["🇷🇴","Romanya"],
+["🇷🇺","Rusya"],
+["🇷🇼","Ruanda"],
+
+["🇸🇦","Suudi Arabistan"],
+["🇸🇳","Senegal"],
+["🇷🇸","Sırbistan"],
+["🇸🇬","Singapur"],
+["🇸🇰","Slovakya"],
+["🇸🇮","Slovenya"],
+["🇸🇴","Somali"],
+["🇿🇦","Güney Afrika"],
+["🇰🇷","Güney Kore"],
+["🇪🇸","İspanya"],
+["🇱🇰","Sri Lanka"],
+["🇸🇩","Sudan"],
+["🇸🇪","İsveç"],
+["🇨🇭","İsviçre"],
+["🇸🇾","Suriye"],
+
+["🇹🇯","Tacikistan"],
+["🇹🇿","Tanzanya"],
+["🇹🇭","Tayland"],
+["🇹🇳","Tunus"],
+["🇹🇷","Türkiye"],
+["🇹🇲","Türkmenistan"],
+
+["🇺🇬","Uganda"],
+["🇺🇦","Ukrayna"],
+["🇦🇪","Birleşik Arap Emirlikleri"],
+["🇬🇧","Birleşik Krallık"],
+["🇺🇸","Amerika Birleşik Devletleri"],
+["🇺🇾","Uruguay"],
+["🇺🇿","Özbekistan"],
+
+["🇻🇪","Venezuela"],
+["🇻🇳","Vietnam"],
+
+["🇾🇪","Yemen"],
+
+["🇿🇲","Zambiya"],
+["🇿🇼","Zimbabve"]
+
+];
+
+
+/* =====================================================
+   STORAGE
+===================================================== */
+
+const STORAGE_KEY =
+    "pax_historia_chat_data_v4";
+
+
+let savedData;
+
+
+try{
+
+    savedData =
+        JSON.parse(
+            localStorage.getItem(STORAGE_KEY)
+            || "{}"
+        );
+
+}catch{
+
+    savedData = {};
+
+}
+
+
+if(!Array.isArray(savedData.chats))
+    savedData.chats=[];
+
+
+if(!Array.isArray(savedData.advisorMessages))
+    savedData.advisorMessages=[];
+
+
+if(!Array.isArray(savedData.pendingSelection))
+    savedData.pendingSelection=[];
+
+
+let selectedCountries =
+    savedData.pendingSelection;
+
+
+let activeChatId =
+    savedData.activeChatId || null;
+
+
+function saveData(){
+
+    savedData.pendingSelection =
+        selectedCountries;
+
+    savedData.activeChatId =
+        activeChatId;
+
+    localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(savedData)
+    );
+
+}
 
 
 /* =====================================================
    ELEMENTLER
 ===================================================== */
+
+const svg =
+    d3.select("#map");
+
+const chatButton =
+    document.getElementById("chatButton");
+
+const advisorButton =
+    document.getElementById("advisorButton");
 
 const chatScreen =
     document.getElementById("chatScreen");
@@ -709,9 +1084,6 @@ const countryScreen =
 const countryChatScreen =
     document.getElementById("countryChatScreen");
 
-const groupScreen =
-    document.getElementById("groupScreen");
-
 const advisorScreen =
     document.getElementById("advisorScreen");
 
@@ -721,438 +1093,889 @@ const countryList =
 const countrySearch =
     document.getElementById("countrySearch");
 
-const savedContacts =
-    document.getElementById("savedContacts");
+const selectedCountriesBox =
+    document.getElementById("selectedCountries");
 
-const countryMessages =
-    document.getElementById("countryMessages");
+const messagesBox =
+    document.getElementById("messages");
 
-const countryMessageInput =
-    document.getElementById("countryMessageInput");
+const messageInput =
+    document.getElementById("messageInput");
 
-const selectedCountryTitle =
-    document.getElementById("selectedCountryTitle");
-
-const advisorMessages =
+const advisorMessagesBox =
     document.getElementById("advisorMessages");
 
-let selectedCountry = null;
+const advisorInput =
+    document.getElementById("advisorInput");
 
 
 /* =====================================================
-   ÜLKELER
+   MAP
 ===================================================== */
 
-const countries = [
+function loadMap(){
 
-["🇹🇷","Türkiye"],
-["🇺🇸","Amerika Birleşik Devletleri"],
-["🇬🇧","Birleşik Krallık"],
-["🇩🇪","Almanya"],
-["🇫🇷","Fransa"],
-["🇮🇹","İtalya"],
-["🇪🇸","İspanya"],
-["🇵🇹","Portekiz"],
-["🇳🇱","Hollanda"],
-["🇧🇪","Belçika"],
-["🇨🇭","İsviçre"],
-["🇦🇹","Avusturya"],
-["🇵🇱","Polonya"],
-["🇨🇿","Çekya"],
-["🇭🇺","Macaristan"],
-["🇷🇴","Romanya"],
-["🇧🇬","Bulgaristan"],
-["🇬🇷","Yunanistan"],
-["🇷🇺","Rusya"],
-["🇺🇦","Ukrayna"],
-["🇧🇾","Belarus"],
-["🇸🇪","İsveç"],
-["🇳🇴","Norveç"],
-["🇫🇮","Finlandiya"],
-["🇩🇰","Danimarka"],
-["🇮🇸","İzlanda"],
-["🇮🇪","İrlanda"],
-["🇷🇸","Sırbistan"],
-["🇭🇷","Hırvatistan"],
-["🇧🇦","Bosna-Hersek"],
-["🇦🇱","Arnavutluk"],
-["🇲🇪","Karadağ"],
-["🇲🇰","Kuzey Makedonya"],
-["🇸🇮","Slovenya"],
+    const W =
+        window.innerWidth;
 
-["🇨🇳","Çin"],
-["🇯🇵","Japonya"],
-["🇰🇷","Güney Kore"],
-["🇰🇵","Kuzey Kore"],
-["🇮🇳","Hindistan"],
-["🇵🇰","Pakistan"],
-["🇦🇫","Afganistan"],
-["🇮🇷","İran"],
-["🇮🇶","Irak"],
-["🇸🇦","Suudi Arabistan"],
-["🇮🇱","İsrail"],
-["🇯🇴","Ürdün"],
-["🇱🇧","Lübnan"],
-["🇸🇾","Suriye"],
-["🇬🇪","Gürcistan"],
-["🇦🇲","Ermenistan"],
-["🇦🇿","Azerbaycan"],
-["🇰🇿","Kazakistan"],
-["🇺🇿","Özbekistan"],
+    const H =
+        window.innerHeight;
 
-["🇪🇬","Mısır"],
-["🇱🇾","Libya"],
-["🇩🇿","Cezayir"],
-["🇲🇦","Fas"],
-["🇹🇳","Tunus"],
-["🇸🇩","Sudan"],
-["🇪🇹","Etiyopya"],
-["🇰🇪","Kenya"],
-["🇳🇬","Nijerya"],
-["🇿🇦","Güney Afrika"],
-["🇨🇩","Kongo Demokratik Cumhuriyeti"],
-["🇬🇭","Gana"],
 
-["🇨🇦","Kanada"],
-["🇲🇽","Meksika"],
-["🇧🇷","Brezilya"],
-["🇦🇷","Arjantin"],
-["🇨🇱","Şili"],
-["🇨🇴","Kolombiya"],
-["🇵🇪","Peru"],
-["🇻🇪","Venezuela"],
-["🇨🇺","Küba"],
-["🇵🇦","Panama"],
+    svg.attr(
+        "viewBox",
+        `0 0 ${W} ${H}`
+    );
 
-["🇦🇺","Avustralya"],
-["🇳🇿","Yeni Zelanda"],
-["🇮🇩","Endonezya"],
-["🇲🇾","Malezya"],
-["🇹🇭","Tayland"],
-["🇻🇳","Vietnam"],
-["🇵🇭","Filipinler"],
-["🇸🇬","Singapur"]
 
-];
+    const layer =
+        svg.append("g");
+
+
+    const projection =
+        d3.geoNaturalEarth1()
+        .scale(W * .34)
+        .translate([
+            W/2,
+            H/2
+        ]);
+
+
+    const path =
+        d3.geoPath()
+        .projection(projection);
+
+
+    d3.json(
+        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json"
+    )
+    .then(world=>{
+
+        const features =
+            topojson.feature(
+                world,
+                world.objects.countries
+            ).features;
+
+
+        const colors=[
+
+            "#b94a48",
+            "#c96a4b",
+            "#d6a84f",
+            "#8d9b55",
+            "#668f65",
+            "#4f8291",
+            "#6680a8",
+            "#766c9b",
+            "#a06b91",
+            "#9a825e",
+            "#737b72",
+            "#c27b72",
+            "#879c72",
+            "#b39b63"
+
+        ];
+
+
+        layer
+        .selectAll(".country")
+        .data(features)
+        .join("path")
+
+        .attr(
+            "class",
+            "country"
+        )
+
+        .attr(
+            "d",
+            path
+        )
+
+        .attr(
+            "fill",
+            (d,i)=>{
+
+                if(String(d.id)==="792")
+                    return "#c91f2b";
+
+                return colors[
+                    i % colors.length
+                ];
+
+            }
+        );
+
+
+        const borders =
+            topojson.mesh(
+                world,
+                world.objects.countries,
+                (a,b)=>a!==b
+            );
+
+
+        layer
+        .append("path")
+        .datum(borders)
+
+        .attr(
+            "class",
+            "borders"
+        )
+
+        .attr(
+            "d",
+            path
+        );
+
+
+        const bounds =
+            path.bounds({
+                type:"FeatureCollection",
+                features
+            });
+
+
+        const left =
+            bounds[0][0];
+
+        const top =
+            bounds[0][1];
+
+        const right =
+            bounds[1][0];
+
+        const bottom =
+            bounds[1][1];
+
+
+        const mapWidth =
+            right-left;
+
+        const mapHeight =
+            bottom-top;
+
+
+        const zoom =
+            d3.zoom()
+
+            .scaleExtent([
+                1,
+                8
+            ])
+
+            .on(
+                "zoom",
+                event=>{
+
+                    let k =
+                        event.transform.k;
+
+                    let x =
+                        event.transform.x;
+
+                    let y =
+                        event.transform.y;
+
+
+                    const mw =
+                        mapWidth*k;
+
+                    const mh =
+                        mapHeight*k;
+
+
+                    if(mw<=W){
+
+                        x =
+                            (W-mw)/2 -
+                            left*k;
+
+                    }else{
+
+                        x =
+                            Math.max(
+                                W-right*k,
+                                Math.min(
+                                    -left*k,
+                                    x
+                                )
+                            );
+
+                    }
+
+
+                    if(mh<=H){
+
+                        y =
+                            (H-mh)/2 -
+                            top*k;
+
+                    }else{
+
+                        y =
+                            Math.max(
+                                H-bottom*k,
+                                Math.min(
+                                    -top*k,
+                                    y
+                                )
+                            );
+
+                    }
+
+
+                    layer.attr(
+                        "transform",
+                        `translate(${x},${y}) scale(${k})`
+                    );
+
+                }
+            );
+
+
+        svg.call(zoom);
+
+        svg.on(
+            "dblclick.zoom",
+            null
+        );
+
+    })
+
+    .catch(error=>{
+
+        console.error(
+            "Harita yüklenemedi:",
+            error
+        );
+
+    });
+
+}
+
+
+loadMap();
 
 
 /* =====================================================
-   CHAT
+   CHAT HOME
 ===================================================== */
 
-document.getElementById("chatButton")
-.onclick = function(){
+chatButton.onclick=()=>{
 
-    chatScreen.style.display="flex";
+    renderChatHome();
 
-    renderContacts();
+    chatScreen.style.display =
+        "flex";
 
 };
 
 
-document.getElementById("chatClose")
-.onclick = function(){
+document.getElementById(
+    "chatClose"
+).onclick=()=>{
 
-    chatScreen.style.display="none";
+    saveData();
+
+    chatScreen.style.display =
+        "none";
 
 };
 
 
 /* =====================================================
-   ÜLKE SEÇ
+   NEW CHAT
 ===================================================== */
 
-document.getElementById("countryChatButton")
-.onclick = function(){
+document.getElementById(
+    "newChat"
+).onclick=()=>{
 
-    chatScreen.style.display="none";
+    selectedCountries=[];
 
-    countryScreen.style.display="flex";
+    saveData();
 
     countrySearch.value="";
 
     renderCountries();
 
-    setTimeout(
-        ()=>countrySearch.focus(),
-        100
-    );
+    chatScreen.style.display =
+        "none";
 
-};
-
-
-document.getElementById("countryBack")
-.onclick = function(){
-
-    countryScreen.style.display="none";
-
-    chatScreen.style.display="flex";
+    countryScreen.style.display =
+        "flex";
 
 };
 
 
 /* =====================================================
-   ÜLKE LİSTESİ
+   BACK
 ===================================================== */
+
+document.getElementById(
+    "countryBack"
+).onclick=()=>{
+
+    countryScreen.style.display =
+        "none";
+
+    chatScreen.style.display =
+        "flex";
+
+    renderChatHome();
+
+};
+
+
+document.getElementById(
+    "countryChatBack"
+).onclick=()=>{
+
+    saveCurrentChat();
+
+    countryChatScreen.style.display =
+        "none";
+
+    chatScreen.style.display =
+        "flex";
+
+    renderChatHome();
+
+};
+
+
+/* =====================================================
+   CHAT HOME RENDER
+===================================================== */
+
+function renderChatHome(){
+
+    const main =
+        document.getElementById(
+            "chatMain"
+        );
+
+
+    main.innerHTML="";
+
+
+    if(savedData.chats.length===0){
+
+        main.innerHTML=`
+
+            <div class="chatEmpty">
+
+                <div>
+
+                    <div class="bigIcon">
+                        💬
+                    </div>
+
+                    <div>
+                        Henüz oluşturulmuş sohbet yok.
+                    </div>
+
+                </div>
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    const title =
+        document.createElement("div");
+
+    title.className =
+        "savedTitle";
+
+    title.textContent =
+        "📌 Kayıtlı Sohbetler";
+
+
+    main.appendChild(title);
+
+
+    savedData.chats.forEach(chat=>{
+
+        const btn =
+            document.createElement(
+                "button"
+            );
+
+
+        btn.className =
+            "savedChat";
+
+
+        const names =
+            chat.countries
+            .map(c=>c[1])
+            .join(" • ");
+
+
+        btn.innerHTML =
+            "🌍 " +
+            names;
+
+
+        const lastAI =
+            [...chat.messages]
+            .reverse()
+            .find(
+                m=>m.role==="ai"
+            );
+
+
+        if(lastAI){
+
+            const preview =
+                document.createElement(
+                    "span"
+                );
+
+            preview.className =
+                "savedPreview";
+
+            preview.textContent =
+                lastAI.text;
+
+            btn.appendChild(preview);
+
+        }
+
+
+        btn.onclick=()=>{
+
+            activeChatId =
+                chat.id;
+
+            saveData();
+
+            openActiveChat();
+
+        };
+
+
+        main.appendChild(btn);
+
+    });
+
+}
+
+
+/* =====================================================
+   COUNTRY SELECT
+===================================================== */
+
+countrySearch.oninput=()=>{
+    renderCountries();
+};
+
 
 function renderCountries(){
 
     const search =
-        countrySearch.value
-        .toLowerCase()
+        countrySearch
+        .value
+        .toLocaleLowerCase("tr-TR")
         .trim();
+
 
     countryList.innerHTML="";
 
+
     countries
-    .filter(c =>
+
+    .filter(c=>
         c[1]
-        .toLowerCase()
+        .toLocaleLowerCase("tr-TR")
         .includes(search)
     )
-    .forEach(c => {
+
+    .forEach(c=>{
 
         const button =
-            document.createElement("button");
+            document.createElement(
+                "button"
+            );
 
-        button.className="countryItem";
 
-        button.innerHTML =
-            `<span class="countryFlag">${c[0]}</span>
-             <span>${c[1]}</span>`;
+        button.className =
+            "countryItem";
 
-        button.onclick = function(){
 
-            openCountry(c);
+        if(
+            selectedCountries.some(
+                x=>x[1]===c[1]
+            )
+        ){
+
+            button.classList.add(
+                "selected"
+            );
+
+        }
+
+
+        button.innerHTML=`
+
+            <span class="flag">
+                ${c[0]}
+            </span>
+
+            <span>
+                ${c[1]}
+            </span>
+
+        `;
+
+
+        button.onclick=()=>{
+
+            const index =
+                selectedCountries.findIndex(
+                    x=>x[1]===c[1]
+                );
+
+
+            if(index>=0){
+
+                selectedCountries.splice(
+                    index,
+                    1
+                );
+
+            }else{
+
+                selectedCountries.push([
+                    c[0],
+                    c[1]
+                ]);
+
+            }
+
+
+            saveData();
+
+            renderCountries();
 
         };
 
-        countryList.appendChild(button);
+
+        countryList.appendChild(
+            button
+        );
+
+    });
+
+
+    renderSelectedCountries();
+
+}
+
+
+function renderSelectedCountries(){
+
+    selectedCountriesBox.innerHTML="";
+
+
+    if(selectedCountries.length===0){
+
+        selectedCountriesBox.innerHTML=`
+
+            <span
+            style="
+            color:#777;
+            font-size:13px;
+            ">
+
+                Henüz ülke seçilmedi.
+
+            </span>
+
+        `;
+
+        return;
+
+    }
+
+
+    selectedCountries.forEach(c=>{
+
+        const tag =
+            document.createElement(
+                "div"
+            );
+
+
+        tag.className =
+            "tag";
+
+
+        tag.textContent =
+            c[0]+" "+c[1];
+
+
+        selectedCountriesBox.appendChild(
+            tag
+        );
 
     });
 
 }
 
 
-countrySearch
-.addEventListener(
-    "input",
-    renderCountries
-);
-
-
 /* =====================================================
-   ÜLKEYİ AÇ
+   START CHAT
 ===================================================== */
 
-function openCountry(country){
+document.getElementById(
+    "startChat"
+).onclick=()=>{
 
-    selectedCountry = country;
+    if(
+        selectedCountries.length===0
+    ){
 
-    countryScreen.style.display="none";
+        alert(
+            "En az bir ülke seç."
+        );
 
-    countryChatScreen.style.display="flex";
+        return;
 
-    selectedCountryTitle.textContent =
-        country[0]+" "+country[1];
-
-    countryMessages.innerHTML="";
-
-    addCountryMessage(
-        country[1]+
-        " ile diplomatik iletişim kanalı açıldı.",
-        "ai"
-    );
-
-    saveContact(country);
-
-    renderContacts();
-
-    setTimeout(
-        ()=>countryMessageInput.focus(),
-        100
-    );
-
-}
+    }
 
 
-/* =====================================================
-   ÜLKE CHAT GERİ
-===================================================== */
+    let existing =
+        savedData.chats.find(
+            c=>
+                JSON.stringify(
+                    c.countries
+                ) ===
+                JSON.stringify(
+                    selectedCountries
+                )
+        );
 
-document.getElementById("countryChatBack")
-.onclick = function(){
 
-    countryChatScreen.style.display="none";
+    if(existing){
 
-    chatScreen.style.display="flex";
+        activeChatId =
+            existing.id;
 
-    renderContacts();
+    }else{
+
+        const chat={
+
+            id:
+                Date.now().toString(),
+
+            countries:
+                selectedCountries.map(
+                    x=>[
+                        x[0],
+                        x[1]
+                    ]
+                ),
+
+            messages:[]
+
+        };
+
+
+        savedData.chats.push(
+            chat
+        );
+
+
+        activeChatId =
+            chat.id;
+
+    }
+
+
+    saveData();
+
+
+    countryScreen.style.display =
+        "none";
+
+
+    openActiveChat();
 
 };
 
 
 /* =====================================================
-   KAYITLI ÜLKELER
+   OPEN CHAT
 ===================================================== */
 
-let contacts =
-    JSON.parse(
-        localStorage.getItem(
-            "paxContacts"
-        ) || "[]"
-    );
+function openActiveChat(){
 
-
-function saveContact(country){
-
-    const exists =
-        contacts.some(
-            c=>c[1]===country[1]
+    const chat =
+        savedData.chats.find(
+            c=>
+                c.id===activeChatId
         );
 
-    if(!exists){
 
-        contacts.push(country);
+    if(!chat){
 
-        localStorage.setItem(
-            "paxContacts",
-            JSON.stringify(contacts)
-        );
+        return;
 
     }
 
-}
+
+    document.getElementById(
+        "chatTitle"
+    ).textContent =
+        "🌍 "+
+        chat.countries
+        .map(c=>c[1])
+        .join(", ");
 
 
-function renderContacts(){
+    renderMessages();
 
-    savedContacts.innerHTML="";
 
-    contacts.forEach(country=>{
+    countryChatScreen.style.display =
+        "flex";
 
-        const div =
-            document.createElement("div");
 
-        div.className="contact";
+    setTimeout(()=>{
 
-        div.innerHTML =
-            `<div class="contactFlag">
-                ${country[0]}
-             </div>
-             <div>
-                <div class="contactName">
-                    ${country[1]}
-                </div>
-                <div class="contactSub">
-                    Diplomatik iletişim
-                </div>
-             </div>`;
+        messagesBox.scrollTop =
+            messagesBox.scrollHeight;
 
-        div.onclick = function(){
+        messageInput.focus();
 
-            openCountry(country);
-
-        };
-
-        savedContacts.appendChild(div);
-
-    });
+    },50);
 
 }
 
 
 /* =====================================================
-   ÜLKE MESAJI
+   SAVE CURRENT CHAT
 ===================================================== */
 
-function addCountryMessage(
-    text,
-    type
-){
+function saveCurrentChat(){
 
-    const div =
-        document.createElement("div");
-
-    div.className =
-        "message "+
-        (
-            type==="user"
-            ? "userMessage"
-            : "aiMessage"
+    const chat =
+        savedData.chats.find(
+            c=>c.id===activeChatId
         );
 
-    div.textContent=text;
 
-    countryMessages.appendChild(div);
-
-    countryMessages.scrollTop =
-        countryMessages.scrollHeight;
-
-}
-
-
-function countryReply(text){
-
-    const q =
-        text.toLowerCase();
-
-    if(q.includes("savaş"))
-        return selectedCountry[1]+
-        " savaş konusunda temkinli bir tutum sergiliyor.";
-
-    if(q.includes("ticaret"))
-        return selectedCountry[1]+
-        " ticaret anlaşmalarını görüşmeye hazır.";
-
-    if(q.includes("ittifak"))
-        return selectedCountry[1]+
-        " olası bir ittifak teklifini değerlendiriyor.";
-
-    if(q.includes("barış"))
-        return selectedCountry[1]+
-        " barışçıl diplomatik görüşmelere açık.";
-
-    return selectedCountry[1]+
-        " mesajınızı aldı. Diplomatik ilişkiler devam ediyor.";
-
-}
-
-
-function sendCountryMessage(){
-
-    const text =
-        countryMessageInput.value.trim();
-
-    if(!text || !selectedCountry)
+    if(!chat)
         return;
 
-    addCountryMessage(
-        text,
-        "user"
-    );
 
-    countryMessageInput.value="";
-
-    setTimeout(()=>{
-
-        addCountryMessage(
-            countryReply(text),
-            "ai"
-        );
-
-    },500);
+    saveData();
 
 }
 
 
-document.getElementById("countrySend")
-.onclick =
-    sendCountryMessage;
+/* =====================================================
+   RENDER MESSAGES
+===================================================== */
+
+function renderMessages(){
+
+    const chat =
+        savedData.chats.find(
+            c=>c.id===activeChatId
+        );
 
 
-countryMessageInput
-.addEventListener(
+    messagesBox.innerHTML="";
+
+
+    if(!chat)
+        return;
+
+
+    chat.messages.forEach(msg=>{
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+
+        div.className =
+            "message "+
+            (
+                msg.role==="user"
+                ? "user"
+                : "ai"
+            );
+
+
+        if(msg.country){
+
+            const name =
+                document.createElement(
+                    "span"
+                );
+
+
+            name.className =
+                "aiName";
+
+
+            name.textContent =
+                msg.flag+" "+
+                msg.country;
+
+
+            div.appendChild(name);
+
+        }
+
+
+        const text =
+            document.createElement(
+                "span"
+            );
+
+
+        text.textContent =
+            msg.text;
+
+
+        div.appendChild(text);
+
+
+        messagesBox.appendChild(
+            div
+        );
+
+    });
+
+
+    messagesBox.scrollTop =
+        messagesBox.scrollHeight;
+
+}
+
+
+/* =====================================================
+   USER MESSAGE
+===================================================== */
+
+document.getElementById(
+    "sendMessage"
+).onclick=sendUserMessage;
+
+
+messageInput.addEventListener(
     "keydown",
     e=>{
 
@@ -1160,7 +1983,7 @@ countryMessageInput
 
             e.preventDefault();
 
-            sendCountryMessage();
+            sendUserMessage();
 
         }
 
@@ -1168,96 +1991,540 @@ countryMessageInput
 );
 
 
-/* =====================================================
-   GRUP SİSTEMİ
-===================================================== */
+async function sendUserMessage(){
 
-let groups =
-    JSON.parse(
-        localStorage.getItem(
-            "paxGroups"
-        ) || "[]"
-    );
+    const text =
+        messageInput.value.trim();
 
 
-document.getElementById("createGroupButton")
-.onclick = function(){
-
-    const name =
-        prompt(
-            "Grup adı:"
-        );
-
-    if(!name)
+    if(!text)
         return;
 
-    const memberNames =
-        contacts.map(
-            c=>c[1]
+
+    const chat =
+        savedData.chats.find(
+            c=>c.id===activeChatId
         );
 
-    groups.push({
 
-        name:name,
+    if(!chat)
+        return;
 
-        members:memberNames
+
+    chat.messages.push({
+
+        role:"user",
+
+        text:text
 
     });
 
-    localStorage.setItem(
-        "paxGroups",
-        JSON.stringify(groups)
+
+    messageInput.value="";
+
+
+    saveData();
+
+    renderMessages();
+
+
+    await generateCountryReplies(
+        chat,
+        text
     );
 
-    renderGroups();
-
-    chatScreen.style.display="none";
-
-    groupScreen.style.display="flex";
-
-};
+}
 
 
-document.getElementById("groupBack")
-.onclick = function(){
+/* =====================================================
+   COUNTRY AI REPLIES
+===================================================== */
 
-    groupScreen.style.display="none";
+async function generateCountryReplies(
+    chat,
+    userText
+){
 
-    chatScreen.style.display="flex";
-
-};
-
-
-function renderGroups(){
-
-    const list =
+    const sendButton =
         document.getElementById(
-            "groupList"
+            "sendMessage"
         );
 
-    list.innerHTML="";
 
-    if(groups.length===0){
+    sendButton.disabled=true;
 
-        list.innerHTML =
-            `<div style="
-                text-align:center;
-                color:#777;
-                padding:30px;
-            ">
-                Henüz grup yok.
-            </div>`;
+    messageInput.disabled=true;
+
+
+    try{
+
+        for(
+            let i=0;
+            i<chat.countries.length;
+            i++
+        ){
+
+            const country =
+                chat.countries[i];
+
+
+            const previous =
+                chat.messages
+                .slice(-15)
+                .map(m=>{
+
+                    if(
+                        m.role==="user"
+                    ){
+
+                        return (
+                            "Oyuncu: "+
+                            m.text
+                        );
+
+                    }
+
+                    return (
+                        m.country+
+                        ": "+
+                        m.text
+                    );
+
+                })
+                .join("\n");
+
+
+            const prompt=`
+
+Sen Pax Historia adlı strateji oyunundaki bir ülkesin.
+
+Ülke:
+${country[1]}
+
+Oyuncunun mesajı:
+${userText}
+
+Önceki konuşma:
+${previous}
+
+Kurallar:
+
+- Sadece ${country[1]} adına konuş.
+- Türkçe cevap ver.
+- Ülkenin siyasi ve diplomatik çıkarlarını dikkate al.
+- Birden fazla ülke varsa diğer ülkelerin yerine konuşma.
+- Gerçek bir ülkeymiş gibi uzun tarih anlatma; oyun içi diplomatik karakter gibi davran.
+- Cevabı kısa ve doğal tut.
+- Gereksiz açıklama yapma.
+- Oyuncuya doğrudan cevap ver.
+
+Şimdi ${country[1]} olarak cevap ver.
+`;
+
+
+            let answer;
+
+
+            try{
+
+                answer =
+                    await callGeminiAPI(
+                        prompt
+                    );
+
+            }catch(error){
+
+                answer =
+                    "⚠️ Yapay zeka yanıt veremedi: "+
+                    error.message;
+
+            }
+
+
+            chat.messages.push({
+
+                role:"ai",
+
+                country:
+                    country[1],
+
+                flag:
+                    country[0],
+
+                text:
+                    answer
+
+            });
+
+
+            saveData();
+
+            renderMessages();
+
+
+            /*
+              Ülkelerin cevaplarının
+              sıra sıra gelmesi için
+              küçük bekleme.
+            */
+
+            if(
+                i<
+                chat.countries.length-1
+            ){
+
+                await wait(350);
+
+            }
+
+        }
+
+    }finally{
+
+        sendButton.disabled=false;
+
+        messageInput.disabled=false;
+
+        messageInput.focus();
+
+    }
+
+}
+
+
+function wait(ms){
+
+    return new Promise(
+        resolve=>
+            setTimeout(
+                resolve,
+                ms
+            )
+    );
+
+}
+
+
+/* =====================================================
+   CLEAR CHAT
+===================================================== */
+
+document.getElementById(
+    "clearChat"
+).onclick=()=>{
+
+    const chat =
+        savedData.chats.find(
+            c=>c.id===activeChatId
+        );
+
+
+    if(!chat)
+        return;
+
+
+    if(
+        !confirm(
+            "Bu sohbetin mesajları silinsin mi?"
+        )
+    ){
 
         return;
 
     }
 
-    groups.forEach(group=>{
+
+    chat.messages=[];
+
+    saveData();
+
+    renderMessages();
+
+};
+
+
+/* =====================================================
+   ADVISOR
+===================================================== */
+
+advisorButton.onclick=()=>{
+
+    renderAdvisorMessages();
+
+    advisorScreen.style.display =
+        "flex";
+
+};
+
+
+document.getElementById(
+    "advisorExit"
+).onclick=()=>{
+
+    advisorScreen.style.display =
+        "none";
+
+};
+
+
+document.getElementById(
+    "advisorClear"
+).onclick=()=>{
+
+    if(
+        !confirm(
+            "Danışman geçmişi silinsin mi?"
+        )
+    )
+        return;
+
+
+    savedData.advisorMessages=[];
+
+    saveData();
+
+    renderAdvisorMessages();
+
+};
+
+
+function renderAdvisorMessages(){
+
+    advisorMessagesBox.innerHTML="";
+
+
+    if(
+        savedData.advisorMessages.length===0
+    ){
+
+        const welcome =
+            document.createElement(
+                "div"
+            );
+
+
+        welcome.className =
+            "advisorMessage advisorAI";
+
+
+        welcome.textContent =
+            "🧠 Pax Historia Danışmanı hazır. Stratejin hakkında soru sorabilirsin.";
+
+
+        advisorMessagesBox.appendChild(
+            welcome
+        );
+
+        return;
+
+    }
+
+
+    savedData.advisorMessages.forEach(msg=>{
 
         const div =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
-        div.className="groupItem";
 
-        div.innerHTML =
-            `
+        div.className =
+            "advisorMessage "+
+            (
+                msg.role==="user"
+                ? "advisorUser"
+                : "advisorAI"
+            );
+
+
+        div.textContent =
+            msg.text;
+
+
+        advisorMessagesBox.appendChild(
+            div
+        );
+
+    });
+
+
+    advisorMessagesBox.scrollTop =
+        advisorMessagesBox.scrollHeight;
+
+}
+
+
+document.getElementById(
+    "advisorSend"
+).onclick=sendAdvisor;
+
+
+advisorInput.addEventListener(
+    "keydown",
+    e=>{
+
+        if(e.key==="Enter"){
+
+            e.preventDefault();
+
+            sendAdvisor();
+
+        }
+
+    }
+);
+
+
+async function sendAdvisor(){
+
+    const text =
+        advisorInput.value.trim();
+
+
+    if(!text)
+        return;
+
+
+    savedData.advisorMessages.push({
+
+        role:"user",
+
+        text:text
+
+    });
+
+
+    advisorInput.value="";
+
+    saveData();
+
+    renderAdvisorMessages();
+
+
+    const button =
+        document.getElementById(
+            "advisorSend"
+        );
+
+
+    button.disabled=true;
+
+    advisorInput.disabled=true;
+
+
+    try{
+
+        const prompt=`
+
+Sen Pax Historia adlı büyük bir strateji oyununun yapay zeka danışmanısın.
+
+Oyuncunun sorusu:
+${text}
+
+Oyuncuya stratejik ve anlaşılır bir cevap ver.
+
+Oyunun temasına uygun olarak:
+- ekonomi
+- diplomasi
+- savaş
+- jeopolitik
+- ittifaklar
+- ülke ilişkileri
+- uzun vadeli strateji
+
+konularında yardımcı ol.
+
+Türkçe cevap ver.
+Kısa ama faydalı ol.
+Oyuncunun yerine karar verme; seçenekleri ve sonuçlarını anlat.
+
+`;
+
+
+        let answer;
+
+
+        try{
+
+            answer =
+                await callGeminiAPI(
+                    prompt
+                );
+
+        }catch(error){
+
+            answer =
+                "⚠️ Yapay zeka yanıt veremedi: "+
+                error.message;
+
+        }
+
+
+        savedData.advisorMessages.push({
+
+            role:"ai",
+
+            text:answer
+
+        });
+
+
+        saveData();
+
+        renderAdvisorMessages();
+
+    }finally{
+
+        button.disabled=false;
+
+        advisorInput.disabled=false;
+
+        advisorInput.focus();
+
+    }
+
+}
+
+
+/* =====================================================
+   BAŞLANGIÇ
+===================================================== */
+
+renderSelectedCountries();
+
+
+/*
+   Sayfa yenilenirse mevcut seçimler
+   kaybolmaz.
+*/
+
+window.addEventListener(
+    "beforeunload",
+    ()=>{
+        saveData();
+    }
+);
+
+
+/*
+   Mobil cihazlarda ekran boyutu
+   değişirse haritayı yeniden yüklemek
+   yerine SVG viewBox'ını güncelle.
+*/
+
+window.addEventListener(
+    "resize",
+    ()=>{
+
+        svg.attr(
+            "viewBox",
+            `0 0 ${window.innerWidth} ${window.innerHeight}`
+        );
+
+    }
+);
+
+</script>
+
+</body>
+</html>
