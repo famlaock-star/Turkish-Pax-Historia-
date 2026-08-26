@@ -2,39 +2,474 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pax Historia Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100%; 
-            background-color: #122236; 
+            width: 100vw; 
+            height: 100vh; 
+            background-color: #0c1b2a; 
             overflow: hidden; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         
         #map { 
-            width: 100vw; 
-            height: 100vh; 
-            background: #122236; 
+            width: 100%; 
+            height: 100%; 
+            background: #0c1b2a; 
             position: absolute; 
             top: 0; 
             left: 0; 
+            z-index: 1;
+            display: none; 
         }
 
-        .leaflet-container {
-            background: #122236 !important;
-        }
-
+        .leaflet-container { background: #0c1b2a !important; }
         .leaflet-control-attribution { display: none !important; }
 
+        /* ANA MENÜ */
+        #main-menu {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(12, 27, 42, 0.98);
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+
+        .menu-title {
+            font-size: 38px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #f39c12;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+            text-align: center;
+        }
+
+        .menu-subtitle {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+
+        .menu-box {
+            background: #152232;
+            border: 1px solid #2c3e50;
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            max-width: 380px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #country-select-screen {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .preset-select, .country-search-input {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #f8fafc;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+        }
+
+        .suggested-label {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: bold;
+        }
+
+        .suggested-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            max-height: 160px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+        .country-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 7px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .country-row:hover {
+            background: #d35400;
+            border-color: #f39c12;
+        }
+
+        .country-flag {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.3);
+            flex-shrink: 0;
+        }
+
+        .country-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .menu-btn {
+            background: #d35400;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .menu-btn:hover { background: #e67e22; }
+
+        /* DANIŞMAN AI */
         #advisor-btn {
             position: fixed; bottom: 20px; right: 20px;
             background: #d35400; color: #fff; border: 1px solid #f39c12;
+            padding: 12px 20px; border-radius: 50px; font-weight: bold; font-size: 13px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6); cursor: pointer; z-index: 4000;
+            display: none;
+        }
+
+        #advisor-modal {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: #ffffff;
+            z-index: 6000; flex-direction: column; justify-content: space-between;
+            padding: 15px; box-sizing: border-box;
+        }
+
+        .modal-header-actions { position: absolute; top: 10px; right: 15px; display: flex; gap: 8px; z-index: 6100; }
+        .header-btn { cursor: pointer; font-size: 11px; font-weight: bold; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; }
+        #clear-chat-btn { background: #7f8c8d; }
+        #modal-close-btn { background: #c0392b; }
+
+        #advisor-content { flex: 1; display: flex; flex-direction: column; width: 100%; margin-top: 35px; overflow: hidden; }
+        #chat-wrapper { flex: 1; overflow-y: auto; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 8px; padding: 10px; }
+        #chat-body { display: flex; flex-direction: column; gap: 10px; }
+
+        .msg { padding: 10px 14px; border-radius: 8px; max-width: 88%; line-height: 1.4; font-size: 13px; white-space: pre-wrap; }
+        .bot { background: #ffffff; border-left: 4px solid #f39c12; color: #2c3e50; align-self: flex-start; }
+        .user { background: #3498db; color: #ffffff; align-self: flex-end; }
+
+        #quick-questions { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+        .quick-btn { background: #edf2f7; color: #4a5568; border: 1px solid #cbd5e0; padding: 6px; border-radius: 4px; font-size: 10px; font-weight: 600; flex: 1; min-width: 90px; text-align: center; cursor: pointer; }
+
+        #chat-input-container { display: flex; gap: 8px; }
+        #chat-input { flex: 1; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; }
+        #chat-send { background: #27ae60; color: #fff; border: none; padding: 0 15px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="main-menu">
+        <div class="menu-title">Pax Historia</div>
+        <div class="menu-subtitle">Turkish Edition</div>
+        
+        <div class="menu-box">
+            <!-- 1. AŞAMA: İLK ANA MENÜ -->
+            <div id="initial-menu-view">
+                <div style="font-size: 14px; color: #cbd5e0; margin-bottom: 15px; font-weight: 600; text-align: center;">Strateji ve Diplomasi Oyunu</div>
+                <button type="button" class="menu-btn" onclick="openCountrySelect()">▶ Oyuna Başla</button>
+            </div>
+
+            <!-- 2. AŞAMA: ÜLKE SEÇİM EKRANI -->
+            <div id="country-select-screen">
+                <label class="suggested-label">SENARYO SEÇ:</label>
+                <select class="preset-select" id="scenario-select">
+                    <option value="2026">Modern Dünya (2026)</option>
+                    <option value="1914" disabled>1. Dünya Savaşı (Yakında)</option>
+                    <option value="1939" disabled>2. Dünya Savaşı (Yakında)</option>
+                </select>
+
+                <label class="suggested-label">DEVLETİNİ SEÇ VEYA ARA:</label>
+                <input type="text" id="country-search" class="country-search-input" placeholder="Ülke ara (Örn: Azerbaycan)..." oninput="filterCountries()" value="Türkiye">
+
+                <div class="suggested-label">BÜTÜN ÜLKELER / ÖNERİLENLER:</div>
+                <div class="suggested-list" id="country-list-container"></div>
+
+                <button type="button" class="menu-btn" onclick="startGame()">Haritaya Geç ve Başla</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <button id="advisor-btn" onclick="toggleAdvisorModal()">💡 Başdanışman</button>
+
+    <div id="advisor-modal">
+        <div class="modal-header-actions">
+            <button id="clear-chat-btn" class="header-btn" onclick="clearChatHistory()">🧹 Temizle</button>
+            <button id="modal-close-btn" class="header-btn" onclick="toggleAdvisorModal()">⬅️ Çık</button>
+        </div>
+
+        <div id="advisor-content">
+            <div id="chat-wrapper">
+                <div id="chat-body"></div>
+            </div>
+
+            <div id="quick-questions">
+                <button class="quick-btn" onclick="sendQuickQuestion('Jeopolitik denge ne durumda?')">🌍 Jeopolitik Denge</button>
+                <button class="quick-btn" onclick="sendQuickQuestion('Ekonomim nasıl?')">💰 Ekonomi Durumu</button>
+                <button class="quick-btn" onclick="sendQuickQuestion('Komşularım ile ilişkim nasıl?')">🤝 Komşu İlişkileri</button>
+            </div>
+
+            <div id="chat-input-container">
+                <input type="text" id="chat-input" placeholder="Başdanışmana emir ver veya hamleni yaz..." onkeypress="handleKeyPress(event)">
+                <button id="chat-send" onclick="sendMessage()">Emret</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var chatHistory = [];
+        var isGenerating = false;
+        var selectedPlayerCountry = "Türkiye";
+        var map = null;
+
+        var worldCountries = [
+            { name: "Türkiye", code: "tr" },
+            { name: "Azerbaycan", code: "az" },
+            { name: "Fransa", code: "fr" },
+            { name: "Almanya", code: "de" },
+            { name: "Birleşik Krallık", code: "gb" },
+            { name: "İtalya", code: "it" },
+            { name: "İspanya", code: "es" },
+            { name: "Rusya", code: "ru" },
+            { name: "USA", code: "us" },
+            { name: "Çin", code: "cn" },
+            { name: "Ukrayna", code: "ua" },
+            { name: "Yunanistan", code: "gr" },
+            { name: "İran", code: "ir" },
+            { name: "Suudi Arabistan", code: "sa" },
+            { name: "Japonya", code: "jp" },
+            { name: "Hindistan", code: "in" },
+            { name: "Pakistan", code: "pk" },
+            { name: "Mısır", code: "eg" },
+            { name: "İsrail", code: "il" },
+            { name: "Suriye", code: "sy" },
+            { name: "Irak", code: "iq" },
+            { name: "Gürcistan", code: "ge" },
+            { name: "Bulgaristan", code: "bg" },
+            { name: "Romanya", code: "ro" },
+            { name: "Polonya", code: "pl" },
+            { name: "Hollanda", code: "nl" },
+            { name: "Brezilya", code: "br" },
+            { name: "Kanada", code: "ca" }
+        ];
+
+        function renderCountryList(filterText = "") {
+            var container = document.getElementById('country-list-container');
+            if(!container) return;
+            container.innerHTML = "";
+            var filtered = worldCountries.filter(c => c.name.toLowerCase().includes(filterText.toLowerCase()));
+
+            filtered.forEach(c => {
+                var flagUrl = `https://flagcdn.com/w40/${c.code}.png`;
+                var row = document.createElement('div');
+                row.className = 'country-row';
+                row.onclick = function() { selectCountry(c.name); };
+                row.innerHTML = `
+                    <img src="${flagUrl}" class="country-flag" alt="${c.code}">
+                    <span class="country-name">${c.name}</span>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function filterCountries() {
+            var searchInput = document.getElementById('country-search');
+            if(searchInput) {
+                renderCountryList(searchInput.value);
+            }
+        }
+
+        function openCountrySelect() {
+            var initialMenu = document.getElementById('initial-menu-view');
+            var selectScreen = document.getElementById('country-select-screen');
+            if(initialMenu) initialMenu.style.display = 'none';
+            if(selectScreen) selectScreen.style.display = 'flex';
+            renderCountryList();
+        }
+
+        function selectCountry(cName) {
+            selectedPlayerCountry = cName;
+            var searchInput = document.getElementById('country-search');
+            if(searchInput) searchInput.value = cName;
+        }
+
+        function startGame() {
+            var searchInput = document.getElementById('country-search');
+            if (searchInput && searchInput.value.trim()) {
+                selectedPlayerCountry = searchInput.value.trim();
+            }
+
+            var menu = document.getElementById('main-menu');
+            if(menu) menu.style.display = 'none';
+            
+            var mapEl = document.getElementById('map');
+            if(mapEl) mapEl.style.display = 'block';
+            
+            var advisorBtn = document.getElementById('advisor-btn');
+            if(advisorBtn) advisorBtn.style.display = 'block';
+
+            if (map === null) {
+                try {
+                    map = L.map('map', { 
+                        attributionControl: false, 
+                        preferCanvas: true,
+                        zoomAnimation: true, 
+                        fadeAnimation: false,
+                        worldCopyJump: true,
+                        minZoom: 2, 
+                        maxZoom: 9
+                    }).setView([38.0, 35.0], 4);
+
+                    // Oyuna özel koyu tonlu dünya haritası katmanı (Takılma yapmaz)
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                        maxZoom: 19,
+                        subdomains: 'abcd'
+                    }).addTo(map);
+
+                } catch(err) {
+                    console.warn("Harita başlatma hatası:", err);
+                }
+            }
+
+            setTimeout(function() {
+                if (map) map.invalidateSize();
+            }, 100);
+
+            if (chatHistory.length === 0) {
+                var firstBoot = "Aleykümselam Paşam! " + selectedPlayerCountry + " olarak dümeni devraldık. Kabine teyakkuzda, harita önümüzde. Ne emrediyorsun? Hangi hamleyi planlıyoruz?";
+                saveMessage('bot', firstBoot);
+                renderChatHistory();
+            }
+        }
+
+        window.onload = function() {
+            var saved = localStorage.getItem('tph_chat_history');
+            if (saved) { 
+                try {
+                    chatHistory = JSON.parse(saved); 
+                    renderChatHistory(); 
+                } catch(e) {}
+            }
+        };
+
+        function renderChatHistory() {
+            var body = document.getElementById('chat-body'); 
+            if(!body) return;
+            body.innerHTML = '';
+            chatHistory.forEach(item => {
+                var msg = document.createElement('div');
+                msg.className = 'msg ' + item.role; 
+                msg.innerText = item.text;
+                body.appendChild(msg);
+            });
+            scrollToBottom();
+        }
+
+        function saveMessage(role, text) { 
+            chatHistory.push({ role, text }); 
+            try {
+                localStorage.setItem('tph_chat_history', JSON.stringify(chatHistory)); 
+            } catch(e) {}
+        }
+
+        function clearChatHistory() { 
+            if (!isGenerating && confirm("Hafızayı tazeleyelim mi Paşam?")) { 
+                chatHistory = []; 
+                try { localStorage.removeItem('tph_chat_history'); } catch(e) {}
+                var body = document.getElementById('chat-body');
+                if(body) body.innerHTML = ''; 
+            } 
+        }
+
+        function toggleAdvisorModal() { 
+            var m = document.getElementById('advisor-modal'); 
+            if(m) m.style.display = (m.style.display === 'flex') ? 'none' : 'flex'; 
+        }
+
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+
+        function sendQuickQuestion(t) { 
+            if (!isGenerating) { 
+                var input = document.getElementById('chat-input');
+                if(input) input.value = t; 
+                sendMessage(); 
+            } 
+        }
+
+        function setControlsDisabled(d) {
+            isGenerating = d;
+            var input = document.getElementById('chat-input');
+            var sendBtn = document.getElementById('chat-send');
+            if(input) input.disabled = d;
+            if(sendBtn) {
+                sendBtn.disabled = d;
+                sendBtn.innerText = d ? "..." : "Emret";
+            }
+        }
+
+        function scrollToBottom() { 
+            var w = document.getElementById('chat-wrapper'); 
+            if(w) setTimeout(() => w.scrollTop = w.scrollHeight, 50); 
+        }
+
+        function getDynamicAdvisorResponse(query) {
+            var q = query.toLowerCase();
+
+            if (q.includes("selamün aleyküm") || q.includes("selamun aleykum") || q.includes("selam") || q.includes("merhaba") || q.includes("hey")) {
+                return "Aleykümselam Paşam! " + selectedPlayerCountry + " karargahındayız. Harita önümüzde açık, düşmanlar sessiz ama plan yapıyor. Hangi cepheyi veya hamleyi tetkik ediyoruz? Emret!";
+            }
+
+            if (q.includes("jeopolitik") || q.includes("denge") || q.includes("dünya")) {
+                return "Emredersin Paşam! " + selectedPlayerCountry + " açısından küresel jeopolitik dengenin 4 maddelik net özeti:\n\n1. **Kritik Konum:** Stratejik geçiş yollarını elimizde tutarak büyük güçlerin planlarını bozuyoruz.\n2. **Kuşatma Riski:** Çevremizdeki hasımların diplomatik ve askeri hamlelerine karşı teyakkuzdayız.\n3. **Etki Alanı:** Bölgesel vekil hatlarında gücümüzü hissettirip etki alanımızı genişletiyoruz.\n4. **Kritik Tavsiye:** Büyük devletlerin çekişmelerini fırsata çevirip ticari ve siyasi manevralar yapmalıyız.";
+            }
+
+            if (q.includes("ekonomi") || q.includes("para") || q.includes("hazine") || q.includes("bütçe") || q.includes("nasıl")) {
+                return "Hazineyi ve bütçeyi bizzat inceledim Paşam! " + selectedPlayerCountry + " ekonomisinin durumu ve 4 acil önlem:\n\n1. **Vergi Dengesi:** Savaş masrafları ve ordu bakımı için ticaret yollarından alınan gelirleri optimize ettik.\n2. **Enflasyon Baskısı:** Artan askeri giderler bütçeyi zorluyor; üretimi artırıp dışa bağımlılığı kısmalıyız.\n3. **Ticaret Akışı:** Liman ve koridor denetimini artırarak kasaya sürekli döviz akışı sağlamalıyız.\n4. **Kritik Tavsiye:** Rakip pazarlara ambargo uygulayarak kaynakları kendi ülkemize çekelim.";
+            }
+
+            if (q.includes("komşu") || q.includes("ilişki")) {
+                return "Komşu devletlerle olan diplomatik sicilimizi masaya yatırdım Paşam. " + selectedPlayerCountry + " için sınır karnemiz:\n\n1. **Sınır Hatları:** Çevremizdeki istikrarsızlıkları yakından izliyor, operasyon hazırlıklarını zinde tutuyoruz.\n2. **Diplomasi ve Güç:** Masada sert, sahada caydırıcı bir duruş sergileyerek taviz vermiyoruz.\n3. **İstihbarat:** İstihbarat ağımız olası komplolara karşı her an uyanık.\n4. **Kritik Tavsiye:** Komşuların kendi iç kavgalarını körükleyerek zayıflamalarını bekleyelim, doğrudan büyük savaşa girmeyelim.";
+            }
+
+            var analizBasligi = "Emredersin Paşam! **'" + query + "'** emrini ve stratejik hedefini bizzat masaya yatırdım. " + selectedPlayerCountry + " için hazırladığım tetkik raporu:";
+            
+            var stratejikTavsiye = "1. **Mevzi Tahkimi:** Hedef bölgedeki askeri ve idari varlığımızı güçlendirip kontrolü ele alalım.\n2. **Diplomatik Manevra:** Karşı tarafın hamle yapmasına fırsat vermeden inisiyatifi elimizde tutalım.";
+            var tehditAnalizi = "⚠️ **Tehditler & Riskler:** Attığın bu adım bölgedeki statükoyu sarsacak. Raki            background: #d35400; color: #fff; border: 1px solid #f39c12;
             padding: 12px 20px; border-radius: 50px; font-weight: bold; font-size: 13px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.6); cursor: pointer; z-index: 1000;
         }
